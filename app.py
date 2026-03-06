@@ -277,16 +277,22 @@ function sfxCl(){tn(880,.04,0,.06)}
 function sfxMg(){tn(1047,.25);setTimeout(function(){tn(1319,.25)},90);setTimeout(function(){tn(1568,.3,0,.06)},180)}
 function speakL(l){ea();var vf={E:350,A:300,I:270,'İ':380,O:320,U:290,'Ü':360,'Ö':340};var f=vf[l];if(f)tn(f,.45,'sine',.12);else tn(180+Math.random()*100,.12,'square',.06)}
 
-// ═══════════ TEXT-TO-SPEECH — ElevenLabs (Profesyonel Ses) ═══════════
-var ttsQueue=[],ttsPlaying=false,ttsCache={};
-var VOICE_ID='21m00Tcm4TlvDq8ikWAM'; // Rachel — sıcak kadın sesi
+// ═══════════ TEXT-TO-SPEECH — ElevenLabs + Ses Kuyruğu ═══════════
+var ttsCache={},currentAudio=null,speakingNow=false;
+var VOICE_ID='21m00Tcm4TlvDq8ikWAM'; // Rachel
+
+// Türkçe harf telaffuz haritası — her harfin FONETİK sesi
+var LETTER_SOUNDS={
+    'E':'eee','L':'lll','A':'aaa','K':'ka','İ':'iii','N':'nnn',
+    'O':'ooo','M':'mmm','U':'uuu','T':'te','Ü':'üüü','Y':'ye',
+    'S':'sss','D':'de','Ö':'ööö','R':'rrr','I':'ııı','B':'be',
+    'Z':'zzz','Ç':'çe','Ş':'şşş','G':'ge','C':'ce','P':'pe',
+    'H':'he','F':'fe','V':'ve','Ğ':'yumuşak ğ','J':'je'
+};
 
 function cleanText(text){
-    // HTML taglerini kaldır
     var s=text.replace(/<[^>]*>/g,' ');
-    // HTML entity'leri kaldır
     s=s.replace(/&[^;]+;/g,' ');
-    // Emojileri kaldır (Unicode emoji ranges)
     s=s.replace(/[\u{1F300}-\u{1F9FF}]/gu,'');
     s=s.replace(/[\u{2600}-\u{27BF}]/gu,'');
     s=s.replace(/[\u{FE00}-\u{FE0F}]/gu,'');
@@ -295,23 +301,29 @@ function cleanText(text){
     s=s.replace(/[\u{E0020}-\u{E007F}]/gu,'');
     s=s.replace(/[\u{2700}-\u{27BF}]/gu,'');
     s=s.replace(/[\u{1F000}-\u{1FFFF}]/gu,'');
-    // Fazla boşlukları temizle
+    s=s.replace(/[⭐🌟💫🌠🏆✨🎉🎊🔥⚡🎮▸🚀✅❌]/g,'');
     s=s.replace(/\s+/g,' ').trim();
     return s;
 }
 
+// Önceki sesi DURDUR
+function stopSpeaking(){
+    if(currentAudio){try{currentAudio.pause();currentAudio.currentTime=0}catch(e){}currentAudio=null}
+    if(window.speechSynthesis)speechSynthesis.cancel();
+    speakingNow=false;
+}
+
 async function speak(text,rate,onEnd){
+    // Önce mevcut sesi durdur — üst üste binmeyi engelle
+    stopSpeaking();
     var clean=cleanText(text);
     if(!clean||clean.length<2){if(onEnd)onEnd();return}
+    speakingNow=true;
 
-    // ElevenLabs varsa kullan
+    // ElevenLabs
     if(EK){
         try{
-            // Cache kontrol
-            if(ttsCache[clean]){
-                playAudioBlob(ttsCache[clean],onEnd);
-                return;
-            }
+            if(ttsCache[clean]){playAudioBlob(ttsCache[clean],onEnd);return}
             var resp=await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+VOICE_ID,{
                 method:'POST',
                 headers:{'xi-api-key':EK,'Content-Type':'application/json'},
@@ -319,7 +331,7 @@ async function speak(text,rate,onEnd){
                     text:clean,
                     model_id:'eleven_multilingual_v2',
                     language_code:'tr',
-                    voice_settings:{stability:0.6,similarity_boost:0.8,style:0.4}
+                    voice_settings:{stability:0.65,similarity_boost:0.8,style:0.3}
                 })
             });
             if(resp.ok){
@@ -329,33 +341,40 @@ async function speak(text,rate,onEnd){
                 playAudioBlob(blob,onEnd);
                 return;
             }
-        }catch(e){console.log('ElevenLabs error:',e)}
+        }catch(e){console.log('EL err:',e)}
     }
 
-    // Fallback: Web Speech API
+    // Fallback: Web Speech
     if(window.speechSynthesis){
         speechSynthesis.cancel();
         var u=new SpeechSynthesisUtterance(clean);
         u.lang='tr-TR';u.rate=rate||0.85;u.pitch=1.1;u.volume=1;
-        if(onEnd)u.onend=onEnd;
+        u.onend=function(){speakingNow=false;if(onEnd)onEnd()};
+        u.onerror=function(){speakingNow=false;if(onEnd)onEnd()};
         speechSynthesis.speak(u);
-    }else{if(onEnd)onEnd()}
+    }else{speakingNow=false;if(onEnd)onEnd()}
 }
 
 function playAudioBlob(blob,onEnd){
+    stopSpeaking(); // Önceki audio'yu durdur
     var url=URL.createObjectURL(blob);
     var audio=new Audio(url);
-    audio.onended=function(){URL.revokeObjectURL(url);if(onEnd)onEnd()};
-    audio.onerror=function(){URL.revokeObjectURL(url);if(onEnd)onEnd()};
-    audio.play().catch(function(){if(onEnd)onEnd()});
+    currentAudio=audio;
+    speakingNow=true;
+    audio.onended=function(){URL.revokeObjectURL(url);currentAudio=null;speakingNow=false;if(onEnd)onEnd()};
+    audio.onerror=function(){URL.revokeObjectURL(url);currentAudio=null;speakingNow=false;if(onEnd)onEnd()};
+    audio.play().catch(function(){currentAudio=null;speakingNow=false;if(onEnd)onEnd()});
 }
 
-function speakLetter(letter,word){
-    speak(letter+'. '+letter+' harfi. '+word+' kelimesinde '+letter+' sesi var.');
+// Doğru telaffuzla harf sesi söyle
+function speakLetterSound(letter,word){
+    var sound=LETTER_SOUNDS[letter]||letter;
+    speak(sound+'. '+word+'. '+word+' kelimesinin başında '+sound+' sesi var.');
 }
 
-function speakSyllables(syls){
-    speak(syls.join(', ')+'. '+syls.join(''));
+// Heceleri ayrı ayrı ve birleşik söyle
+function speakSyllables(syls,word){
+    speak(syls.join('. ')+'. Birleştirince: '+word);
 }
 
 // ═══════════ CLAUDE API ═══════════
@@ -415,22 +434,26 @@ function removeTyping(){var el=$('typing-row');if(el)el.remove()}
 
 function showChoices(options,callback){
     var ch=$('choices');ch.innerHTML='';
-    options.forEach(function(opt){
+    options.forEach(function(opt,i){
         var btn=document.createElement('div');
         btn.className='choice';
-        btn.innerHTML=(opt.emoji?'<span class="ch-emoji">'+opt.emoji+'</span>':'')+opt.text;
+        // Büyük emoji + küçük yazı (emoji ana rehber, yazı ebeveynler için)
+        btn.innerHTML='<span class="ch-emoji" style="font-size:clamp(32px,7vw,48px)">'+opt.emoji+'</span><span style="font-size:clamp(11px,2vw,15px);opacity:0.6">'+opt.text+'</span>';
         btn.onclick=function(){
-            sfxCl();ch.classList.remove('on');
-            addMsg('child',opt.text,0).then(function(){callback(opt)});
+            sfxCl();stopSpeaking();ch.classList.remove('on');
+            addMsg('child',opt.emoji+' '+opt.text,0,true).then(function(){callback(opt)});
         };
         ch.appendChild(btn);
     });
     ch.classList.add('on');
+    // Sesle tüm seçenekleri sırayla anlat
+    var narration=options.map(function(o,i){return o.emoji+', '+o.text}).join('. Veya, ');
+    setTimeout(function(){speak(narration)},300);
 }
 
 // ═══════════ MASCOT CONVERSATIONS ═══════════
 async function startMascotChat(){
-    hideAll();clearChat();show('chat');
+    stopSpeaking();hideAll();clearChat();show('chat');
     var m=mascot(),l=letter(),g=GR[S.gi];
 
     // Step 1: Mascot greets
@@ -518,12 +541,12 @@ function showMascotHint(){
     var m=mascot(),l=letter();
     var hintText=personalize(rnd(m.hints));
     $('mp-text').innerHTML=hintText;
-    speak(hintText,0.85);
     $('mp-choices').innerHTML='';
-    var btn=document.createElement('div');btn.className='mp-choice';btn.textContent='Tamam, tekrar deneyeceğim! 💪';
-    btn.onclick=function(){hide('mascot-pop')};
+    var btn=document.createElement('div');btn.className='mp-choice';btn.textContent='Tamam, tekrar deneyeceğim!';
+    btn.onclick=function(){stopSpeaking();hide('mascot-pop')};
     $('mp-choices').appendChild(btn);
     show('mascot-pop');
+    setTimeout(function(){speak(hintText)},300);
     setTimeout(function(){hide('mascot-pop')},5000);
 }
 
@@ -531,31 +554,45 @@ function showMascotCorrect(){
     var m=mascot();
     var praiseText=personalize(rnd(m.encourages));
     $('mp-text').innerHTML=praiseText;
-    speak(praiseText,0.9);
     $('mp-choices').innerHTML='';
     show('mascot-pop');
-    setTimeout(function(){hide('mascot-pop')},2500);
+    // 500ms bekle ki doğru cevap melodisiyle çakışmasın
+    setTimeout(function(){speak(praiseText)},500);
+    setTimeout(function(){hide('mascot-pop')},3000);
 }
 
 // Floating mascot button — tap to hear encouragement
 $('mascot-btn').onclick=function(){
     sfxCl();
-    if($('mascot-pop').classList.contains('on')){hide('mascot-pop');return}
+    if($('mascot-pop').classList.contains('on')){stopSpeaking();hide('mascot-pop');return}
     var m=mascot(),l=letter();
-    $('mp-text').innerHTML=personalize(m.name+': Devam et __NAME__! <b>'+l.t+'</b> harfini arıyoruz! '+l.snd+' 🎵');
+    var lsnd=LETTER_SOUNDS[l.t]||l.t;
+    var msg=m.name+': Devam et '+S.name+'! '+lsnd+' sesini arıyoruz!';
+    $('mp-text').innerHTML=msg;
     $('mp-choices').innerHTML='';
     var choices=[
-        {t:'Tamam! 💪',action:function(){hide('mascot-pop')}},
-        {t:'İpucu ver! 🤔',action:function(){$('mp-text').innerHTML=personalize(rnd(m.hints));$('mp-choices').innerHTML='';setTimeout(function(){hide('mascot-pop')},2500)}}
+        {t:'Tamam!',action:function(){stopSpeaking();hide('mascot-pop')}},
+        {t:'İpucu ver!',action:function(){stopSpeaking();var hint=personalize(rnd(m.hints));$('mp-text').innerHTML=hint;$('mp-choices').innerHTML='';speak(hint);setTimeout(function(){hide('mascot-pop')},3500)}}
     ];
     choices.forEach(function(c){var btn=document.createElement('div');btn.className='mp-choice';btn.textContent=c.t;btn.onclick=c.action;$('mp-choices').appendChild(btn)});
     show('mascot-pop');
+    speak(msg);
 };
 
-// ═══════════ CINEMATIC ═══════════
-var cinS=[{t:"",m:"",d:400},{t:"Çok çok uzaklarda...",m:"",d:2200},{t:"Yıldızların arasında büyülü bir ülke varmış...",m:"",d:2800},{t:"",m:"⭐",d:1200},{t:"Orada harfler canlıymış...",m:"⭐",d:3000},{t:"Ama bir gün harfler kaybolmuş!",m:"",d:2500},{t:"Cesur hayvan dostlarımız yardıma gelmiş...",m:"",d:2800},{t:"",m:"🦁🦉🐬🐪🐰",d:2000},{t:"Şimdi sıra sende!",m:"⭐",d:2500}];
+// ═══════════ CINEMATIC (sesli anlatımlı) ═══════════
+var cinS=[
+{t:"",m:"",d:400},
+{t:"Çok çok uzaklarda...",m:"",v:"Çok çok uzaklarda",d:3000},
+{t:"Yıldızların arasında büyülü bir ülke varmış...",m:"",v:"Yıldızların arasında büyülü bir ülke varmış",d:4000},
+{t:"",m:"⭐",d:1500},
+{t:"Orada harfler canlıymış...",m:"⭐",v:"Orada harfler canlıymış ve her birinin kendi sesi varmış",d:4500},
+{t:"Ama bir gün harfler kaybolmuş!",m:"",v:"Ama bir gün harfler kaybolmuş!",d:3500},
+{t:"Cesur hayvan dostlarımız yardıma gelmiş...",m:"",v:"Cesur hayvan dostlarımız yardıma gelmiş",d:4000},
+{t:"",m:"🦁🦉🐬🐪🐰",v:"Aslan, Baykuş, Yunus, Deve ve Tavşan!",d:3500},
+{t:"Şimdi sıra sende!",m:"⭐",v:"Şimdi sıra sende! Bu maceraya katılmaya hazır mısın?",d:4000}
+];
 var cinI=0;
-function runCin(){if(cinI>=cinS.length){endCin();return}var s=cinS[cinI];$('cin-t').className='';$('cin-m').className='';setTimeout(function(){$('cin-t').textContent=s.t;$('cin-m').textContent=s.m;if(s.t)$('cin-t').className='show';if(s.m)$('cin-m').className='show';cinI++;setTimeout(runCin,s.d)},400)}
+function runCin(){if(cinI>=cinS.length){endCin();return}var s=cinS[cinI];$('cin-t').className='';$('cin-m').className='';setTimeout(function(){$('cin-t').textContent=s.t;$('cin-m').textContent=s.m;if(s.t)$('cin-t').className='show';if(s.m)$('cin-m').className='show';if(s.v)speak(s.v);cinI++;setTimeout(runCin,s.d)},400)}
 function endCin(){$('cin').classList.add('off');setTimeout(function(){$('cin').style.display='none';show('nscr');sfxMg();announceNameScreen()},1200)}
 $('cin-skip').onclick=function(){cinI=cinS.length;endCin()};
 setTimeout(runCin,600);
@@ -634,7 +671,7 @@ $('nbtn').onclick=function(){
 };
 
 // ═══════════ WORLD MAP ═══════════
-function showWM(){hideAll();$('wm-pn').textContent='🌟 '+S.name;var g=$('wm-g');g.innerHTML='';
+function showWM(){stopSpeaking();hideAll();$('wm-pn').textContent='🌟 '+S.name;var g=$('wm-g');g.innerHTML='';
 GR.forEach(function(gr,gi){var done=S.gc.indexOf(gi)>=0,nextIdx=S.gc.length?S.gc[S.gc.length-1]+1:0,cur=gi===nextIdx&&!done,locked=gi>0&&S.gc.indexOf(gi-1)<0&&gi!==nextIdx;
 var m=M[gr.mi],ld=gr.l.filter(function(l){return S.ld.indexOf(l.t)>=0}).length,pct=(ld/gr.l.length)*100;
 var z=document.createElement('div');z.className='wm-z'+(locked?' locked':'')+(cur?' cur':'')+(done?' done':'');
@@ -643,39 +680,61 @@ if(!locked)(function(idx){z.onclick=function(){sfxCl();S.gi=idx;S.li=done?0:ld;i
 g.appendChild(z)});show('wmap')}
 
 // ═══════════ STAGES ═══════════
-function startStg(n){S.stg=n;S.mr=0;S.buf="";S.ri=0;S.wrongCount=0;hideAll();show('hud');show('pw');show('slbl');
+function startStg(n){S.stg=n;S.mr=0;S.buf="";S.ri=0;S.wrongCount=0;stopSpeaking();hideAll();show('hud');show('pw');show('slbl');
 $('mascot-btn').textContent=mascot().icon;show('mascot-btn');
 updHUD();var labels=["1/4 — Bul","2/4 — Hece Yap","3/4 — Oku","4/4 — Mini Oyun"];$('slbl').textContent=labels[n-1]||"";
 [null,showMatch,showBuild,showRead,showMini][n]()}
 
-function showMatch(){var l=letter(),cor=l.t;
+function showMatch(){var l=letter(),cor=l.t,lsnd=LETTER_SOUNDS[cor]||cor;
 var pool=[];for(var gi=Math.max(0,S.gi-1);gi<Math.min(GR.length,S.gi+2);gi++)GR[gi].l.forEach(function(x){if(x.t!==cor)pool.push(x.t)});
 pool=Array.from(new Set(pool));pool.sort(function(){return Math.random()-.5});var opts=pool.slice(0,3).concat(cor).sort(function(){return Math.random()-.5});
-$('s-match').innerHTML='<div class="prompt">'+l.e+' '+l.w+'</div><div class="subprompt">"'+l.w+'" kelimesinin ilk harfi hangisi?</div><div class="tiles" id="mt">'+opts.map(function(o,i){return '<div class="tile" style="animation:slideUp .4s '+i*.06+'s both" data-v="'+o+'">'+o+'</div>'}).join('')+'</div><div class="sm-round">'+(S.mr+1)+'/3</div>';
-show('s-match');speak(l.w+' kelimesinin ilk harfi hangisi?',0.85);
-document.querySelectorAll('#mt .tile').forEach(function(t){t.onclick=function(){if(t.classList.contains('ok'))return;ea();
-if(t.dataset.v===cor){t.classList.add('ok');correct();showMascotCorrect();setTimeout(function(){hide('s-match');S.mr++;S.mr>=3?startStg(2):showMatch()},1200)}else wrong(t)}})}
+$('s-match').innerHTML='<div class="prompt">'+l.e+' '+l.w+'</div><div class="subprompt">'+l.snd+'</div><div class="tiles" id="mt">'+opts.map(function(o,i){return '<div class="tile" style="animation:slideUp .4s '+i*.06+'s both" data-v="'+o+'">'+o+'</div>'}).join('')+'</div><div class="sm-round">'+(S.mr+1)+'/3</div>';
+show('s-match');
+// Sesli rehberlik: kelimeyi söyle, seçenekleri oku
+var optNames=opts.map(function(o){return LETTER_SOUNDS[o]||o}).join(', ');
+speak(l.w+'! '+l.w+' kelimesi '+lsnd+' sesiyle başlar. '+lsnd+' sesini bul! Seçenekler: '+optNames);
+document.querySelectorAll('#mt .tile').forEach(function(t){t.onclick=function(){if(t.classList.contains('ok'))return;ea();stopSpeaking();
+// Her dokunulan harfin sesini söyle
+var touchedSound=LETTER_SOUNDS[t.dataset.v]||t.dataset.v;
+if(t.dataset.v===cor){t.classList.add('ok');correct();
+    speak('Doğru! '+touchedSound+'! Harika!');
+    setTimeout(function(){hide('s-match');S.mr++;S.mr>=3?startStg(2):showMatch()},2000)}
+else{wrong(t);speak(touchedSound+'. Hayır, bu değil. Tekrar dene!')}}})}
+
 
 function showBuild(){var l=letter();var target=l.s.join(''),syls=[].concat(l.s);S.ld.filter(function(x){return x!==l.t}).slice(-2).forEach(function(e){syls.push(e)});syls.sort(function(){return Math.random()-.5});S.buf="";
-$('s-build').innerHTML='<div class="prompt">'+l.e+' Heceleri Birleştir!</div><div class="build-target" id="bt">_</div><div class="build-hint">'+l.e+' '+l.w+' → '+l.s.join(' + ')+'</div><div class="tiles" id="bl">'+syls.map(function(s){return '<div class="tile" data-v="'+s+'">'+s+'</div>'}).join('')+'</div>';
-show('s-build');speak('Heceleri birleştir! '+l.s.join(', artı, ')+', eşittir, '+l.w,0.8);document.querySelectorAll('#bl .tile').forEach(function(b){b.onclick=function(){ea();sfxCl();b.style.background='var(--sky)';b.style.borderColor='var(--sky)';S.buf+=b.dataset.v;$('bt').textContent=S.buf||'_';
-if(S.buf===target){correct();showMascotCorrect();$('bt').style.color='var(--mint)';confetti(15);setTimeout(function(){hide('s-build');startStg(3)},800)}
-else if(target.indexOf(S.buf)!==0){sfxNo();S.combo=0;S.wrongCount++;updHUD();if(S.wrongCount>=2)showMascotHint();setTimeout(function(){S.buf="";$('bt').textContent='_';$('bt').style.color='';document.querySelectorAll('#bl .tile').forEach(function(x){x.style.background='';x.style.borderColor=''})},350)}}})}
+$('s-build').innerHTML='<div class="prompt">'+l.e+' '+l.w+'</div><div class="build-target" id="bt">_</div><div class="build-hint">'+l.s.join(' + ')+' = '+l.w+'</div><div class="tiles" id="bl">'+syls.map(function(s){return '<div class="tile" data-v="'+s+'">'+s+'</div>'}).join('')+'</div>';
+show('s-build');
+speak('Şimdi heceleri birleştireceğiz! '+l.w+' kelimesi '+l.s.join(', ve, ')+' hecelerinden oluşur. Sırayla hecelere dokun! Önce '+l.s[0]+' hecesini bul!');
+document.querySelectorAll('#bl .tile').forEach(function(b){b.onclick=function(){ea();stopSpeaking();sfxCl();b.style.background='var(--sky)';b.style.borderColor='var(--sky)';
+// Dokunulan heceyi sesli oku
+speak(b.dataset.v);
+S.buf+=b.dataset.v;$('bt').textContent=S.buf||'_';
+if(S.buf===target){setTimeout(function(){speak('Birleştirdik! '+l.w+'! Harikasın!')},600);correct();$('bt').style.color='var(--mint)';confetti(15);setTimeout(function(){hide('s-build');startStg(3)},2500)}
+else if(target.indexOf(S.buf)!==0){setTimeout(function(){speak('Hmm, bu doğru sıra değil. Tekrar deneyelim! Önce '+l.s[0]+' hecesini bul!')},400);sfxNo();S.combo=0;S.wrongCount++;updHUD();if(S.wrongCount>=2)showMascotHint();setTimeout(function(){S.buf="";$('bt').textContent='_';$('bt').style.color='';document.querySelectorAll('#bl .tile').forEach(function(x){x.style.background='';x.style.borderColor=''})},500)}}})}
 
 function showRead(){var l=letter();S.ri=0;var sh=[].concat(l.s).sort(function(){return Math.random()-.5});
-$('s-read').innerHTML='<div style="color:rgba(255,255,255,.4);font-size:12px;margin-bottom:6px">Hecelere sırayla dokun ve oku!</div><div class="prompt">'+l.e+' '+l.w+'</div><div class="read-syls" id="rs">'+sh.map(function(s){return '<div class="syl" data-v="'+s+'">'+s+'</div>'}).join('')+'</div>';
-show('s-read');speak('Hecelere sırayla dokun ve oku! '+l.w,0.85);
-document.querySelectorAll('#rs .syl').forEach(function(b){b.onclick=function(){if(b.classList.contains('done'))return;ea();
-if(b.dataset.v===l.s[S.ri]){b.classList.add('lit');sfxCl();speak(b.dataset.v,0.75);S.ri++;setTimeout(function(){b.classList.replace('lit','done')},250);
-if(S.ri>=l.s.length){correct();showMascotCorrect();confetti(12);setTimeout(function(){hide('s-read');startStg(4)},800)}}else wrong(b)}})}
+$('s-read').innerHTML='<div class="prompt">'+l.e+' '+l.w+'</div><div class="read-syls" id="rs">'+sh.map(function(s){return '<div class="syl" data-v="'+s+'">'+s+'</div>'}).join('')+'</div>';
+show('s-read');
+speak('Şimdi '+l.w+' kelimesini okuyacağız! Hecelere sırayla dokun. İlk önce '+l.s[0]+' hecesini bul ve dokun!');
+document.querySelectorAll('#rs .syl').forEach(function(b){b.onclick=function(){if(b.classList.contains('done'))return;ea();stopSpeaking();
+if(b.dataset.v===l.s[S.ri]){b.classList.add('lit');speak(b.dataset.v);S.ri++;setTimeout(function(){b.classList.replace('lit','done')},400);
+if(S.ri>=l.s.length){setTimeout(function(){speak(l.s.join('')+'! '+l.w+' kelimesini okudun! Harikasın!')},500);correct();confetti(12);setTimeout(function(){hide('s-read');startStg(4)},3000)}
+else{setTimeout(function(){speak('Güzel! Şimdi '+l.s[S.ri]+' hecesini bul!')},600)}}
+else{wrong(b);speak('Bu '+b.dataset.v+'. Hayır, şimdi '+l.s[S.ri]+' hecesini arıyoruz!')}}})}
 
 function showMini(){var l=letter(),m=mascot();
 var corW={w:l.w,e:l.e},others=[];GR.forEach(function(gr){gr.l.forEach(function(x){if(x.t!==l.t)others.push({w:x.w,e:x.e})})});
 others.sort(function(){return Math.random()-.5});var cards=[corW].concat(others.slice(0,3)).sort(function(){return Math.random()-.5});
-$('s-mini').innerHTML='<div class="prompt">Hangi kelime "'+l.t+'" ile başlar?</div><div class="subprompt">'+m.icon+' '+m.name+' soruyor!</div><div class="mg-cards" id="mc">'+cards.map(function(c){return '<div class="mg-card" data-w="'+c.w+'"><div class="mg-emoji">'+c.e+'</div><div class="mg-word">'+c.w+'</div></div>'}).join('')+'</div>';
-show('s-mini');speak('Hangi kelime '+l.t+' ile başlar? '+m.name+' soruyor!',0.85);
-document.querySelectorAll('#mc .mg-card').forEach(function(c){c.onclick=function(){if(c.classList.contains('ok'))return;ea();
-if(c.dataset.w===l.w){c.classList.add('ok');correct();confetti(20);setTimeout(function(){hide('s-mini');hide('mascot-btn');hide('mascot-pop');letterDone()},800)}else wrong(c)}})}
+$('s-mini').innerHTML='<div class="prompt">'+l.e+' '+l.t+'</div><div class="subprompt">'+m.icon+' '+m.name+'</div><div class="mg-cards" id="mc">'+cards.map(function(c){return '<div class="mg-card" data-w="'+c.w+'"><div class="mg-emoji">'+c.e+'</div><div class="mg-word">'+c.w+'</div></div>'}).join('')+'</div>';
+show('s-mini');
+var lsnd=LETTER_SOUNDS[l.t]||l.t;
+var cardNames=cards.map(function(c){return c.w}).join(', ');
+speak(m.name+' soruyor! Hangi kelime '+lsnd+' sesiyle başlar? Seçenekler: '+cardNames+'. '+lsnd+' sesini düşün ve doğru resme dokun!');
+document.querySelectorAll('#mc .mg-card').forEach(function(c){c.onclick=function(){if(c.classList.contains('ok'))return;ea();stopSpeaking();
+// Dokunulan kartın kelimesini söyle
+if(c.dataset.w===l.w){c.classList.add('ok');correct();speak('Evet! '+l.w+'! Doğru buldun!');confetti(20);setTimeout(function(){hide('s-mini');hide('mascot-btn');hide('mascot-pop');letterDone()},2500)}
+else{wrong(c);speak(c.dataset.w+'. Hayır, '+c.dataset.w+' değil. '+lsnd+' sesiyle başlayan kelimeyi bul!')}}})}
 
 function letterDone(){var l=letter();if(S.ld.indexOf(l.t)<0)S.ld.push(l.t);S.li++;S.li>=GR[S.gi].l.length?groupDone():startMascotChat()}
 
