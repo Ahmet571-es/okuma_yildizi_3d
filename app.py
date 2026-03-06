@@ -276,6 +276,47 @@ function sfxCl(){tn(880,.04,0,.06)}
 function sfxMg(){tn(1047,.25);setTimeout(function(){tn(1319,.25)},90);setTimeout(function(){tn(1568,.3,0,.06)},180)}
 function speakL(l){ea();var vf={E:350,A:300,I:270,'İ':380,O:320,U:290,'Ü':360,'Ö':340};var f=vf[l];if(f)tn(f,.45,'sine',.12);else tn(180+Math.random()*100,.12,'square',.06)}
 
+// ═══════════ TEXT-TO-SPEECH (Sesli Okuma) ═══════════
+var ttsReady=false,ttsVoice=null;
+function initTTS(){
+    if(!window.speechSynthesis)return;
+    function findTurkish(){
+        var voices=speechSynthesis.getVoices();
+        for(var i=0;i<voices.length;i++){
+            if(voices[i].lang&&voices[i].lang.indexOf('tr')===0){ttsVoice=voices[i];break}
+        }
+        ttsReady=true;
+    }
+    findTurkish();
+    if(speechSynthesis.onvoiceschanged!==undefined)speechSynthesis.onvoiceschanged=findTurkish;
+}
+initTTS();
+
+function speak(text,rate,onEnd){
+    if(!window.speechSynthesis)return;
+    // HTML taglerini temizle
+    var clean=text.replace(/<[^>]*>/g,' ').replace(/&[^;]+;/g,' ').replace(/\s+/g,' ').trim();
+    if(!clean)return;
+    speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(clean);
+    u.lang='tr-TR';
+    u.rate=rate||0.85;  // Çocuklar için yavaş
+    u.pitch=1.1;         // Biraz yüksek ton — çocuk dostu
+    u.volume=1;
+    if(ttsVoice)u.voice=ttsVoice;
+    if(onEnd)u.onend=onEnd;
+    speechSynthesis.speak(u);
+}
+
+function speakLetter(letter,word){
+    // Önce harfin sesini söyle, sonra kelimeyi
+    speak(letter+'. '+letter+' harfi. '+word+' kelimesinde '+letter+' sesi var.',0.8);
+}
+
+function speakSyllables(syls){
+    speak(syls.join(', ')+'. '+syls.join(''),0.8);
+}
+
 // ═══════════ CLAUDE API ═══════════
 async function aiChat(prompt,sys){
     if(!CK)return null;
@@ -299,7 +340,7 @@ function wrong(el){el.classList.add('no');sfxNo();S.combo=0;S.wrongCount++;updHU
 // ═══════════ INTERACTIVE CHAT SYSTEM ═══════════
 function clearChat(){$('chat-area').innerHTML='';$('choices').innerHTML='';$('choices').classList.remove('on')}
 
-function addMsg(who,html,delay){
+function addMsg(who,html,delay,skipSpeak){
     return new Promise(function(resolve){
         setTimeout(function(){
             var m=mascot();
@@ -314,7 +355,9 @@ function addMsg(who,html,delay){
             row.appendChild(av);row.appendChild(bub);
             $('chat-area').appendChild(row);
             $('chat-area').scrollTop=$('chat-area').scrollHeight;
-            resolve();
+            // Maskot mesajlarını otomatik seslendir
+            if(who==='mascot'&&!skipSpeak)speak(html,0.85,function(){resolve()});
+            else resolve();
         },delay||0);
     });
 }
@@ -432,22 +475,25 @@ async function transitionToGame(){
 // ═══════════ IN-GAME MASCOT POPUP ═══════════
 function showMascotHint(){
     var m=mascot(),l=letter();
-    $('mp-text').innerHTML=personalize(rnd(m.hints));
+    var hintText=personalize(rnd(m.hints));
+    $('mp-text').innerHTML=hintText;
+    speak(hintText,0.85);
     $('mp-choices').innerHTML='';
     var btn=document.createElement('div');btn.className='mp-choice';btn.textContent='Tamam, tekrar deneyeceğim! 💪';
     btn.onclick=function(){hide('mascot-pop')};
     $('mp-choices').appendChild(btn);
     show('mascot-pop');
-    // Auto-hide after 4s
-    setTimeout(function(){hide('mascot-pop')},4000);
+    setTimeout(function(){hide('mascot-pop')},5000);
 }
 
 function showMascotCorrect(){
     var m=mascot();
-    $('mp-text').innerHTML=personalize(rnd(m.encourages));
+    var praiseText=personalize(rnd(m.encourages));
+    $('mp-text').innerHTML=praiseText;
+    speak(praiseText,0.9);
     $('mp-choices').innerHTML='';
     show('mascot-pop');
-    setTimeout(function(){hide('mascot-pop')},2000);
+    setTimeout(function(){hide('mascot-pop')},2500);
 }
 
 // Floating mascot button — tap to hear encouragement
@@ -496,26 +542,29 @@ function showMatch(){var l=letter(),cor=l.t;
 var pool=[];for(var gi=Math.max(0,S.gi-1);gi<Math.min(GR.length,S.gi+2);gi++)GR[gi].l.forEach(function(x){if(x.t!==cor)pool.push(x.t)});
 pool=Array.from(new Set(pool));pool.sort(function(){return Math.random()-.5});var opts=pool.slice(0,3).concat(cor).sort(function(){return Math.random()-.5});
 $('s-match').innerHTML='<div class="prompt">'+l.e+' '+l.w+'</div><div class="subprompt">"'+l.w+'" kelimesinin ilk harfi hangisi?</div><div class="tiles" id="mt">'+opts.map(function(o,i){return '<div class="tile" style="animation:slideUp .4s '+i*.06+'s both" data-v="'+o+'">'+o+'</div>'}).join('')+'</div><div class="sm-round">'+(S.mr+1)+'/3</div>';
-show('s-match');document.querySelectorAll('#mt .tile').forEach(function(t){t.onclick=function(){if(t.classList.contains('ok'))return;ea();
-if(t.dataset.v===cor){t.classList.add('ok');correct();showMascotCorrect();setTimeout(function(){hide('s-match');S.mr++;S.mr>=3?startStg(2):showMatch()},650)}else wrong(t)}})}
+show('s-match');speak(l.w+' kelimesinin ilk harfi hangisi?',0.85);
+document.querySelectorAll('#mt .tile').forEach(function(t){t.onclick=function(){if(t.classList.contains('ok'))return;ea();
+if(t.dataset.v===cor){t.classList.add('ok');correct();showMascotCorrect();setTimeout(function(){hide('s-match');S.mr++;S.mr>=3?startStg(2):showMatch()},1200)}else wrong(t)}})}
 
 function showBuild(){var l=letter();var target=l.s.join(''),syls=[].concat(l.s);S.ld.filter(function(x){return x!==l.t}).slice(-2).forEach(function(e){syls.push(e)});syls.sort(function(){return Math.random()-.5});S.buf="";
 $('s-build').innerHTML='<div class="prompt">'+l.e+' Heceleri Birleştir!</div><div class="build-target" id="bt">_</div><div class="build-hint">'+l.e+' '+l.w+' → '+l.s.join(' + ')+'</div><div class="tiles" id="bl">'+syls.map(function(s){return '<div class="tile" data-v="'+s+'">'+s+'</div>'}).join('')+'</div>';
-show('s-build');document.querySelectorAll('#bl .tile').forEach(function(b){b.onclick=function(){ea();sfxCl();b.style.background='var(--sky)';b.style.borderColor='var(--sky)';S.buf+=b.dataset.v;$('bt').textContent=S.buf||'_';
+show('s-build');speak('Heceleri birleştir! '+l.s.join(', artı, ')+', eşittir, '+l.w,0.8);document.querySelectorAll('#bl .tile').forEach(function(b){b.onclick=function(){ea();sfxCl();b.style.background='var(--sky)';b.style.borderColor='var(--sky)';S.buf+=b.dataset.v;$('bt').textContent=S.buf||'_';
 if(S.buf===target){correct();showMascotCorrect();$('bt').style.color='var(--mint)';confetti(15);setTimeout(function(){hide('s-build');startStg(3)},800)}
 else if(target.indexOf(S.buf)!==0){sfxNo();S.combo=0;S.wrongCount++;updHUD();if(S.wrongCount>=2)showMascotHint();setTimeout(function(){S.buf="";$('bt').textContent='_';$('bt').style.color='';document.querySelectorAll('#bl .tile').forEach(function(x){x.style.background='';x.style.borderColor=''})},350)}}})}
 
 function showRead(){var l=letter();S.ri=0;var sh=[].concat(l.s).sort(function(){return Math.random()-.5});
 $('s-read').innerHTML='<div style="color:rgba(255,255,255,.4);font-size:12px;margin-bottom:6px">Hecelere sırayla dokun ve oku!</div><div class="prompt">'+l.e+' '+l.w+'</div><div class="read-syls" id="rs">'+sh.map(function(s){return '<div class="syl" data-v="'+s+'">'+s+'</div>'}).join('')+'</div>';
-show('s-read');document.querySelectorAll('#rs .syl').forEach(function(b){b.onclick=function(){if(b.classList.contains('done'))return;ea();
-if(b.dataset.v===l.s[S.ri]){b.classList.add('lit');sfxCl();speakL(b.dataset.v[0]);S.ri++;setTimeout(function(){b.classList.replace('lit','done')},250);
+show('s-read');speak('Hecelere sırayla dokun ve oku! '+l.w,0.85);
+document.querySelectorAll('#rs .syl').forEach(function(b){b.onclick=function(){if(b.classList.contains('done'))return;ea();
+if(b.dataset.v===l.s[S.ri]){b.classList.add('lit');sfxCl();speak(b.dataset.v,0.75);S.ri++;setTimeout(function(){b.classList.replace('lit','done')},250);
 if(S.ri>=l.s.length){correct();showMascotCorrect();confetti(12);setTimeout(function(){hide('s-read');startStg(4)},800)}}else wrong(b)}})}
 
 function showMini(){var l=letter(),m=mascot();
 var corW={w:l.w,e:l.e},others=[];GR.forEach(function(gr){gr.l.forEach(function(x){if(x.t!==l.t)others.push({w:x.w,e:x.e})})});
 others.sort(function(){return Math.random()-.5});var cards=[corW].concat(others.slice(0,3)).sort(function(){return Math.random()-.5});
 $('s-mini').innerHTML='<div class="prompt">Hangi kelime "'+l.t+'" ile başlar?</div><div class="subprompt">'+m.icon+' '+m.name+' soruyor!</div><div class="mg-cards" id="mc">'+cards.map(function(c){return '<div class="mg-card" data-w="'+c.w+'"><div class="mg-emoji">'+c.e+'</div><div class="mg-word">'+c.w+'</div></div>'}).join('')+'</div>';
-show('s-mini');document.querySelectorAll('#mc .mg-card').forEach(function(c){c.onclick=function(){if(c.classList.contains('ok'))return;ea();
+show('s-mini');speak('Hangi kelime '+l.t+' ile başlar? '+m.name+' soruyor!',0.85);
+document.querySelectorAll('#mc .mg-card').forEach(function(c){c.onclick=function(){if(c.classList.contains('ok'))return;ea();
 if(c.dataset.w===l.w){c.classList.add('ok');correct();confetti(20);setTimeout(function(){hide('s-mini');hide('mascot-btn');hide('mascot-pop');letterDone()},800)}else wrong(c)}})}
 
 function letterDone(){var l=letter();if(S.ld.indexOf(l.t)<0)S.ld.push(l.t);S.li++;S.li>=GR[S.gi].l.length?groupDone():startMascotChat()}
