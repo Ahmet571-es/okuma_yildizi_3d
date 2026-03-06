@@ -22,8 +22,9 @@ section.main>div.block-container{padding:0!important;max-width:100%!important}
 div[data-testid="stVerticalBlock"]{gap:0!important}
 </style>""", unsafe_allow_html=True)
 
-# API key'i .env dosyasından oku (güvenli — kod içinde key yok)
+# API key'leri .env dosyasından oku (güvenli — kod içinde key yok)
 ck = os.getenv("CLAUDE_API_KEY", "")
+ek = os.getenv("ELEVENLABS_API_KEY", "")
 
 GAME = r"""<!DOCTYPE html>
 <html lang="tr"><head><meta charset="UTF-8">
@@ -212,7 +213,7 @@ canvas#cv{position:fixed;inset:0;width:100%;height:100%;z-index:1}
 </div>
 
 <script>
-var CK="__CK__",has3D=false;
+var CK="__CK__",EK="__EK__",has3D=false;
 // Stars
 (function(){var bg=document.getElementById('sbg');for(var i=0;i<80;i++){var s=document.createElement('div');s.className='star';s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';s.style.setProperty('--d',(2+Math.random()*3)+'s');s.style.setProperty('--dl',Math.random()*3+'s');bg.appendChild(s)}})();
 
@@ -276,45 +277,85 @@ function sfxCl(){tn(880,.04,0,.06)}
 function sfxMg(){tn(1047,.25);setTimeout(function(){tn(1319,.25)},90);setTimeout(function(){tn(1568,.3,0,.06)},180)}
 function speakL(l){ea();var vf={E:350,A:300,I:270,'İ':380,O:320,U:290,'Ü':360,'Ö':340};var f=vf[l];if(f)tn(f,.45,'sine',.12);else tn(180+Math.random()*100,.12,'square',.06)}
 
-// ═══════════ TEXT-TO-SPEECH (Sesli Okuma) ═══════════
-var ttsReady=false,ttsVoice=null;
-function initTTS(){
-    if(!window.speechSynthesis)return;
-    function findTurkish(){
-        var voices=speechSynthesis.getVoices();
-        for(var i=0;i<voices.length;i++){
-            if(voices[i].lang&&voices[i].lang.indexOf('tr')===0){ttsVoice=voices[i];break}
-        }
-        ttsReady=true;
-    }
-    findTurkish();
-    if(speechSynthesis.onvoiceschanged!==undefined)speechSynthesis.onvoiceschanged=findTurkish;
-}
-initTTS();
+// ═══════════ TEXT-TO-SPEECH — ElevenLabs (Profesyonel Ses) ═══════════
+var ttsQueue=[],ttsPlaying=false,ttsCache={};
+var VOICE_ID='21m00Tcm4TlvDq8ikWAM'; // Rachel — sıcak kadın sesi
 
-function speak(text,rate,onEnd){
-    if(!window.speechSynthesis)return;
-    // HTML taglerini temizle
-    var clean=text.replace(/<[^>]*>/g,' ').replace(/&[^;]+;/g,' ').replace(/\s+/g,' ').trim();
-    if(!clean)return;
-    speechSynthesis.cancel();
-    var u=new SpeechSynthesisUtterance(clean);
-    u.lang='tr-TR';
-    u.rate=rate||0.85;  // Çocuklar için yavaş
-    u.pitch=1.1;         // Biraz yüksek ton — çocuk dostu
-    u.volume=1;
-    if(ttsVoice)u.voice=ttsVoice;
-    if(onEnd)u.onend=onEnd;
-    speechSynthesis.speak(u);
+function cleanText(text){
+    // HTML taglerini kaldır
+    var s=text.replace(/<[^>]*>/g,' ');
+    // HTML entity'leri kaldır
+    s=s.replace(/&[^;]+;/g,' ');
+    // Emojileri kaldır (Unicode emoji ranges)
+    s=s.replace(/[\u{1F300}-\u{1F9FF}]/gu,'');
+    s=s.replace(/[\u{2600}-\u{27BF}]/gu,'');
+    s=s.replace(/[\u{FE00}-\u{FE0F}]/gu,'');
+    s=s.replace(/[\u{200D}]/gu,'');
+    s=s.replace(/[\u{20E3}]/gu,'');
+    s=s.replace(/[\u{E0020}-\u{E007F}]/gu,'');
+    s=s.replace(/[\u{2700}-\u{27BF}]/gu,'');
+    s=s.replace(/[\u{1F000}-\u{1FFFF}]/gu,'');
+    // Fazla boşlukları temizle
+    s=s.replace(/\s+/g,' ').trim();
+    return s;
+}
+
+async function speak(text,rate,onEnd){
+    var clean=cleanText(text);
+    if(!clean||clean.length<2){if(onEnd)onEnd();return}
+
+    // ElevenLabs varsa kullan
+    if(EK){
+        try{
+            // Cache kontrol
+            if(ttsCache[clean]){
+                playAudioBlob(ttsCache[clean],onEnd);
+                return;
+            }
+            var resp=await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+VOICE_ID,{
+                method:'POST',
+                headers:{'xi-api-key':EK,'Content-Type':'application/json'},
+                body:JSON.stringify({
+                    text:clean,
+                    model_id:'eleven_multilingual_v2',
+                    language_code:'tr',
+                    voice_settings:{stability:0.6,similarity_boost:0.8,style:0.4}
+                })
+            });
+            if(resp.ok){
+                var buf=await resp.arrayBuffer();
+                var blob=new Blob([buf],{type:'audio/mpeg'});
+                ttsCache[clean]=blob;
+                playAudioBlob(blob,onEnd);
+                return;
+            }
+        }catch(e){console.log('ElevenLabs error:',e)}
+    }
+
+    // Fallback: Web Speech API
+    if(window.speechSynthesis){
+        speechSynthesis.cancel();
+        var u=new SpeechSynthesisUtterance(clean);
+        u.lang='tr-TR';u.rate=rate||0.85;u.pitch=1.1;u.volume=1;
+        if(onEnd)u.onend=onEnd;
+        speechSynthesis.speak(u);
+    }else{if(onEnd)onEnd()}
+}
+
+function playAudioBlob(blob,onEnd){
+    var url=URL.createObjectURL(blob);
+    var audio=new Audio(url);
+    audio.onended=function(){URL.revokeObjectURL(url);if(onEnd)onEnd()};
+    audio.onerror=function(){URL.revokeObjectURL(url);if(onEnd)onEnd()};
+    audio.play().catch(function(){if(onEnd)onEnd()});
 }
 
 function speakLetter(letter,word){
-    // Önce harfin sesini söyle, sonra kelimeyi
-    speak(letter+'. '+letter+' harfi. '+word+' kelimesinde '+letter+' sesi var.',0.8);
+    speak(letter+'. '+letter+' harfi. '+word+' kelimesinde '+letter+' sesi var.');
 }
 
 function speakSyllables(syls){
-    speak(syls.join(', ')+'. '+syls.join(''),0.8);
+    speak(syls.join(', ')+'. '+syls.join(''));
 }
 
 // ═══════════ CLAUDE API ═══════════
@@ -651,4 +692,4 @@ pg.attributes.position.needsUpdate=pg.attributes.color.needsUpdate=pg.attributes
 </script>
 </body></html>"""
 
-components.html(GAME.replace('__CK__',ck), height=780, scrolling=False)
+components.html(GAME.replace('__CK__',ck).replace('__EK__',ek), height=780, scrolling=False)
