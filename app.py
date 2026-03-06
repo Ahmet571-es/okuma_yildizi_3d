@@ -1,12 +1,17 @@
 # ======================================================================================
 # ⭐ YILDIZ ÜLKESİ — İnteraktif Maskot Diyalog Sistemi
 # ======================================================================================
-# pip install streamlit
+# pip install streamlit python-dotenv
 # streamlit run app.py
 # ======================================================================================
 
 import streamlit as st
 import streamlit.components.v1 as components
+import os
+from dotenv import load_dotenv
+
+# .env dosyasından API key'i güvenli şekilde oku
+load_dotenv()
 
 st.set_page_config(page_title="Yıldız Ülkesi", page_icon="⭐", layout="wide", initial_sidebar_state="collapsed")
 st.markdown("""<style>
@@ -17,13 +22,8 @@ section.main>div.block-container{padding:0!important;max-width:100%!important}
 div[data-testid="stVerticalBlock"]{gap:0!important}
 </style>""", unsafe_allow_html=True)
 
-with st.sidebar:
-    st.markdown("### ⚙️ Ayarlar")
-    claude_key = st.text_input("Claude API Key (opsiyonel)", type="password")
-    st.markdown("---")
-    st.markdown("API key olmadan da oyun çalışır. Maskotlar hazır diyalogları kullanır.")
-
-ck = claude_key or ""
+# API key'i .env dosyasından oku (güvenli — kod içinde key yok)
+ck = os.getenv("CLAUDE_API_KEY", "")
 
 GAME = r"""<!DOCTYPE html>
 <html lang="tr"><head><meta charset="UTF-8">
