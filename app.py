@@ -194,7 +194,7 @@ canvas#cv{position:fixed;inset:0;width:100%;height:100%;z-index:1}
 <canvas id="cv"></canvas>
 <div id="ui">
 <div id="cin"><div id="cin-m"></div><div id="cin-t"></div><div class="cin-skip" id="cin-skip">Atla ▸</div></div>
-<div id="nscr"><div class="nm-m">⭐</div><div class="nm-tt">Seni tanıyabilir miyim?</div><div class="nm-sub">Adını yaz, maceraya başlayalım!</div><input id="ni" type="text" placeholder="Adın..." maxlength="15" autocomplete="off"><button id="nbtn">🚀 Başlayalım!</button></div>
+<div id="nscr"><div class="nm-m">⭐</div><div class="nm-tt">Seni tanıyabilir miyim?</div><div class="nm-sub" id="nm-sub">Adını söyle ya da yaz!</div><button id="mic-btn" style="font-size:clamp(40px,8vw,64px);background:linear-gradient(135deg,var(--coral),var(--pink));border:none;border-radius:50%;width:clamp(70px,14vw,100px);height:clamp(70px,14vw,100px);cursor:pointer;margin-bottom:12px;animation:pls 2s ease-in-out infinite;transition:transform .2s;box-shadow:0 0 30px rgba(255,107,107,.4)">🎤</button><div id="mic-status" style="color:rgba(255,255,255,.5);font-size:clamp(12px,2.2vw,16px);margin-bottom:12px;min-height:20px"></div><div id="name-display" style="font-family:'Baloo 2',cursive;font-size:clamp(28px,6vw,46px);font-weight:800;color:var(--gold);min-height:clamp(34px,7vw,52px);margin-bottom:8px"></div><input id="ni" type="text" placeholder="ya da buraya yaz..." maxlength="15" autocomplete="off" style="font-size:clamp(14px,3vw,20px);padding:10px 18px"><button id="nbtn">🚀 Başlayalım!</button></div>
 <div id="wmap"><div class="wm-t">Yıldız Ülkesi</div><div class="wm-pn" id="wm-pn"></div><div class="wm-g" id="wm-g"></div></div>
 <!-- INTERACTIVE CHAT SCREEN -->
 <div id="chat"><div id="chat-area"></div><div id="choices"></div></div>
@@ -556,13 +556,82 @@ $('mascot-btn').onclick=function(){
 var cinS=[{t:"",m:"",d:400},{t:"Çok çok uzaklarda...",m:"",d:2200},{t:"Yıldızların arasında büyülü bir ülke varmış...",m:"",d:2800},{t:"",m:"⭐",d:1200},{t:"Orada harfler canlıymış...",m:"⭐",d:3000},{t:"Ama bir gün harfler kaybolmuş!",m:"",d:2500},{t:"Cesur hayvan dostlarımız yardıma gelmiş...",m:"",d:2800},{t:"",m:"🦁🦉🐬🐪🐰",d:2000},{t:"Şimdi sıra sende!",m:"⭐",d:2500}];
 var cinI=0;
 function runCin(){if(cinI>=cinS.length){endCin();return}var s=cinS[cinI];$('cin-t').className='';$('cin-m').className='';setTimeout(function(){$('cin-t').textContent=s.t;$('cin-m').textContent=s.m;if(s.t)$('cin-t').className='show';if(s.m)$('cin-m').className='show';cinI++;setTimeout(runCin,s.d)},400)}
-function endCin(){$('cin').classList.add('off');setTimeout(function(){$('cin').style.display='none';show('nscr');sfxMg()},1200)}
+function endCin(){$('cin').classList.add('off');setTimeout(function(){$('cin').style.display='none';show('nscr');sfxMg();announceNameScreen()},1200)}
 $('cin-skip').onclick=function(){cinI=cinS.length;endCin()};
 setTimeout(runCin,600);
 
 // ═══════════ NAME ═══════════
-$('ni').oninput=function(e){$('nbtn').classList.toggle('ok',e.target.value.trim().length>0)};
-$('nbtn').onclick=function(){var n=$('ni').value.trim();if(!n)return;S.name=n;sfxLv();hide('nscr');$('nscr').classList.add('off');setTimeout(showWM,700)};
+// ═══════════ VOICE NAME ENTRY ═══════════
+var SpeechRecog=window.SpeechRecognition||window.webkitSpeechRecognition;
+var micListening=false;
+
+// Sesli ad açıklama — sayfa açılınca isim ekranı geldiğinde çalışır
+function announceNameScreen(){
+    setTimeout(function(){speak('Merhaba! Ben Yıldız! Adını öğrenmek istiyorum. Kırmızı mikrofon butonuna bas ve adını söyle!')},800);
+}
+
+$('mic-btn').onclick=function(){
+    ea(); sfxCl();
+    if(!SpeechRecog){
+        $('mic-status').textContent='Mikrofon desteklenmiyor. Adını yaz.';
+        $('ni').focus();
+        return;
+    }
+    if(micListening)return;
+    micListening=true;
+    $('mic-btn').style.transform='scale(1.15)';
+    $('mic-btn').style.background='linear-gradient(135deg,#EF4444,#DC2626)';
+    $('mic-status').textContent='Dinliyorum... Adını söyle!';
+    speak('Adını söyle!');
+
+    var recog=new SpeechRecog();
+    recog.lang='tr-TR';
+    recog.continuous=false;
+    recog.interimResults=false;
+    recog.maxAlternatives=1;
+
+    recog.onresult=function(e){
+        var raw=e.results[0][0].transcript.trim();
+        // İlk kelimeyi al (isim), büyük harfle başlat
+        var name=raw.split(' ')[0];
+        name=name.charAt(0).toUpperCase()+name.slice(1).toLowerCase();
+        $('name-display').textContent=name;
+        $('ni').value=name;
+        $('nbtn').classList.add('ok');
+        $('mic-status').textContent='';
+        speak('Senin adın '+name+' mi? Doğruysa yeşil butona bas!');
+    };
+
+    recog.onerror=function(e){
+        $('mic-status').textContent='Duyamadım. Tekrar dene veya yaz.';
+        speak('Duyamadım. Tekrar dene!');
+    };
+
+    recog.onend=function(){
+        micListening=false;
+        $('mic-btn').style.transform='';
+        $('mic-btn').style.background='';
+    };
+
+    recog.start();
+};
+
+$('ni').oninput=function(e){
+    var v=e.target.value.trim();
+    $('nbtn').classList.toggle('ok',v.length>0);
+    $('name-display').textContent=v;
+};
+
+$('nbtn').onclick=function(){
+    var n=$('ni').value.trim();
+    if(!n)return;
+    S.name=n;
+    sfxLv();
+    speak('Hoş geldin '+n+'! Maceraya başlıyoruz!',0.85,function(){
+        hide('nscr');$('nscr').classList.add('off');
+        setTimeout(showWM,300);
+    });
+};
 
 // ═══════════ WORLD MAP ═══════════
 function showWM(){hideAll();$('wm-pn').textContent='🌟 '+S.name;var g=$('wm-g');g.innerHTML='';
