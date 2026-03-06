@@ -279,7 +279,8 @@ function speakL(l){ea();var vf={E:350,A:300,I:270,'İ':380,O:320,U:290,'Ü':360,
 
 // ═══════════ TEXT-TO-SPEECH — ElevenLabs + Ses Kuyruğu ═══════════
 var ttsCache={},currentAudio=null,speakingNow=false;
-var VOICE_ID='21m00Tcm4TlvDq8ikWAM'; // Rachel
+var VOICE_ID='c4n2ypvZwjKx1uUi3vSG'; // Türkçe ana dil sesi (Young Turkish Voice)
+// Alternatif: ElevenLabs > Voices > Voice Library > "Turkish" ara > beğendiğin sesi seç > voice_id kopyala
 
 // Türkçe harf telaffuz haritası — her harfin FONETİK sesi
 var LETTER_SOUNDS={
@@ -331,7 +332,7 @@ async function speak(text,rate,onEnd){
                     text:clean,
                     model_id:'eleven_multilingual_v2',
                     language_code:'tr',
-                    voice_settings:{stability:0.65,similarity_boost:0.8,style:0.3}
+                    voice_settings:{stability:0.82,similarity_boost:0.85,style:0.15,use_speaker_boost:true}
                 })
             });
             if(resp.ok){
@@ -366,10 +367,10 @@ function playAudioBlob(blob,onEnd){
     audio.play().catch(function(){currentAudio=null;speakingNow=false;if(onEnd)onEnd()});
 }
 
-// Doğru telaffuzla harf sesi söyle
+// Doğru telaffuzla harf sesi söyle — yavaş ve tane tane
 function speakLetterSound(letter,word){
     var sound=LETTER_SOUNDS[letter]||letter;
-    speak(sound+'. '+word+'. '+word+' kelimesinin başında '+sound+' sesi var.');
+    speak(sound+'... '+sound+'... Bu sesin adı, '+letter+'. '+word+', kelimesinin başında, '+sound+', sesi var. '+sound+'... '+word+'.');
 }
 
 // Heceleri ayrı ayrı ve birleşik söyle
@@ -462,7 +463,7 @@ async function startMascotChat(){
     if(CK){
         aiGreet=await aiChat(
             S.name+' adında 5 yaşında bir çocuk '+g.n+' dünyasına geldi. '+m.name+' olarak onu karşıla. Şimdi "'+l.t+'" harfini öğrenecek. 2-3 cümle ile selamla ve tanış.',
-            'Sen "'+m.name+'" adında '+m.pers+' bir maskotusun. 5 yaşında bir çocukla konuşuyorsun. Çok kısa, basit, neşeli cümleler kur. Emoji kullan. Sonunda çocuğa bir soru sor (ör: Hazır mısın? Sence bu harf ne sesi çıkarır?)');
+            'Sen "'+m.name+'" adında '+m.pers+' bir maskotusun. 5 yaşında okuma bilmeyen bir çocukla konuşuyorsun. Çok kısa ve basit cümleler kur. ASLA emoji kullanma. Noktalama işaretlerini doğru kullan. Sesli okunacak bir metin yazıyorsun. Neşeli, cesaretlendirici ve sıcak ol. Sonunda çocuğa basit bir soru sor.');
     }
     removeTyping();
     await addMsg('mascot',aiGreet||personalize(rnd(m.greets)),200);
@@ -483,7 +484,7 @@ async function handleGreetResponse(opt){
     if(CK){
         aiResp=await aiChat(
             'Çocuk "'+opt.text+'" dedi. Şimdi ona "'+l.t+'" harfini tanıt. Harfin sesi: '+l.snd+'. Kelime: '+l.w+' ('+l.e+'). Harfi büyük göster ve sesini anlat. 2-3 cümle.',
-            'Sen "'+m.name+'". 5 yaşında '+S.name+' ile konuşuyorsun. Çok kısa, neşeli, emoji kullan.');
+            'Sen "'+m.name+'". 5 yaşında '+S.name+' ile konuşuyorsun. Çok kısa ve basit cümleler kur. Emoji kullanma. Sesli okunacak metin yaz.');
     }
     removeTyping();
     var fallback='Süper '+S.name+'! 🎉 Bak bu harf: <span class="letter-show" style="color:'+l.c+'">'+l.t+'</span> <span class="emoji-show">'+l.e+'</span> Bu harfin sesi: <b>'+l.snd+'</b>';
@@ -508,7 +509,7 @@ async function handleLetterResponse(opt){
         var aiRepeat=null;
         if(CK){
             aiRepeat=await aiChat('Çocuk harfi tekrar dinlemek istiyor. "'+l.t+'" harfinin sesini farklı bir şekilde anlat. '+l.snd+'. Eğlenceli bir benzetme yap.',
-            'Sen "'+m.name+'". Çok kısa, eğlenceli anlat.');
+            'Sen "'+m.name+'". Çok kısa, basit, eğlenceli anlat. Emoji kullanma.');
         }
         removeTyping();
         await addMsg('mascot',aiRepeat||personalize(mascot().name+' tekrar anlatıyor: '+letter().snd+' 🎵 '+letter().e+' kelimesinde bu sesi duyarsın!'),300);
@@ -528,7 +529,7 @@ async function transitionToGame(){
     var aiTrans=null;
     if(CK){
         aiTrans=await aiChat('Şimdi oyun başlayacak. "'+l.t+'" harfini bulma oyunu. '+S.name+'\'ı cesaretlendir. 1 cümle.',
-        'Sen "'+m.name+'". Çok kısa, heyecanlı.');
+        'Sen "'+m.name+'". Bir cümle ile cesaretlendir. Emoji kullanma.');
     }
     removeTyping();
     await addMsg('mascot',aiTrans||personalize('Harika __NAME__! Şimdi <b>'+l.t+'</b> harfini bulma zamanı! Hazır ol! 🎮✨'),300);
@@ -567,7 +568,7 @@ $('mascot-btn').onclick=function(){
     if($('mascot-pop').classList.contains('on')){stopSpeaking();hide('mascot-pop');return}
     var m=mascot(),l=letter();
     var lsnd=LETTER_SOUNDS[l.t]||l.t;
-    var msg=m.name+': Devam et '+S.name+'! '+lsnd+' sesini arıyoruz!';
+    var msg=m.name+' diyor ki: Devam et '+S.name+'! '+lsnd+' sesini arıyoruz. Kutulara dikkatli bak, ve doğru olanına dokun.';
     $('mp-text').innerHTML=msg;
     $('mp-choices').innerHTML='';
     var choices=[
@@ -604,7 +605,7 @@ var micListening=false;
 
 // Sesli ad açıklama — sayfa açılınca isim ekranı geldiğinde çalışır
 function announceNameScreen(){
-    setTimeout(function(){speak('Merhaba! Ben Yıldız! Adını öğrenmek istiyorum. Kırmızı mikrofon butonuna bas ve adını söyle!')},800);
+    setTimeout(function(){speak('Merhaba! Ben Yıldız! Seninle tanışmak istiyorum... Ekranının ortasında büyük, kırmızı, yuvarlak bir buton görüyorsun. O butona parmağınla dokun, ve adını söyle.')},800);
 }
 
 $('mic-btn').onclick=function(){
@@ -636,12 +637,12 @@ $('mic-btn').onclick=function(){
         $('ni').value=name;
         $('nbtn').classList.add('ok');
         $('mic-status').textContent='';
-        speak('Senin adın '+name+' mi? Doğruysa yeşil butona bas!');
+        speak('Senin adın, '+name+', mı? Eğer doğruysa, aşağıdaki yeşil, başlayalım, butonuna dokun.');
     };
 
     recog.onerror=function(e){
         $('mic-status').textContent='Duyamadım. Tekrar dene veya yaz.';
-        speak('Duyamadım. Tekrar dene!');
+        speak('Seni duyamadım. Kırmızı butona tekrar dokun, ve adını yüksek sesle söyle.');
     };
 
     recog.onend=function(){
@@ -664,7 +665,7 @@ $('nbtn').onclick=function(){
     if(!n)return;
     S.name=n;
     sfxLv();
-    speak('Hoş geldin '+n+'! Maceraya başlıyoruz!',0.85,function(){
+    speak('Hoş geldin '+n+'! Seninle harika bir maceraya çıkacağız!',0.85,function(){
         hide('nscr');$('nscr').classList.add('off');
         setTimeout(showWM,300);
     });
@@ -692,36 +693,37 @@ $('s-match').innerHTML='<div class="prompt">'+l.e+' '+l.w+'</div><div class="sub
 show('s-match');
 // Sesli rehberlik: kelimeyi söyle, seçenekleri oku
 var optNames=opts.map(function(o){return LETTER_SOUNDS[o]||o}).join(', ');
-speak(l.w+'! '+l.w+' kelimesi '+lsnd+' sesiyle başlar. '+lsnd+' sesini bul! Seçenekler: '+optNames);
+speak(l.w+'... '+l.w+'... '+l.w+' kelimesi, '+lsnd+', sesiyle başlar... Ekranının altındaki kutulara bak. Dört tane kutu var. Her kutunun içinde bir harf var. '+lsnd+' sesini çıkaran harfi bul, ve o kutuya parmağınla dokun.');
 document.querySelectorAll('#mt .tile').forEach(function(t){t.onclick=function(){if(t.classList.contains('ok'))return;ea();stopSpeaking();
 // Her dokunulan harfin sesini söyle
 var touchedSound=LETTER_SOUNDS[t.dataset.v]||t.dataset.v;
 if(t.dataset.v===cor){t.classList.add('ok');correct();
-    speak('Doğru! '+touchedSound+'! Harika!');
+    speak('Evet! Bu doğru! '+touchedSound+' sesi! Çok güzel buldun, aferin!');
     setTimeout(function(){hide('s-match');S.mr++;S.mr>=3?startStg(2):showMatch()},2000)}
-else{wrong(t);speak(touchedSound+'. Hayır, bu değil. Tekrar dene!')}}})}
+else{wrong(t);speak('Bu '+touchedSound+' sesi. Ama biz '+lsnd+' sesini arıyoruz. Başka bir kutuya dokun.')}}})}
+
 
 
 function showBuild(){var l=letter();var target=l.s.join(''),syls=[].concat(l.s);S.ld.filter(function(x){return x!==l.t}).slice(-2).forEach(function(e){syls.push(e)});syls.sort(function(){return Math.random()-.5});S.buf="";
 $('s-build').innerHTML='<div class="prompt">'+l.e+' '+l.w+'</div><div class="build-target" id="bt">_</div><div class="build-hint">'+l.s.join(' + ')+' = '+l.w+'</div><div class="tiles" id="bl">'+syls.map(function(s){return '<div class="tile" data-v="'+s+'">'+s+'</div>'}).join('')+'</div>';
 show('s-build');
-speak('Şimdi heceleri birleştireceğiz! '+l.w+' kelimesi '+l.s.join(', ve, ')+' hecelerinden oluşur. Sırayla hecelere dokun! Önce '+l.s[0]+' hecesini bul!');
+speak('Şimdi heceleri birleştireceğiz... '+l.w+' kelimesi, '+l.s.join(', ve, ')+', hecelerinden oluşur... Ekranının altındaki kutulara bak... Önce, '+l.s[0]+', hecesini bul, ve o kutuya dokun.');
 document.querySelectorAll('#bl .tile').forEach(function(b){b.onclick=function(){ea();stopSpeaking();sfxCl();b.style.background='var(--sky)';b.style.borderColor='var(--sky)';
 // Dokunulan heceyi sesli oku
 speak(b.dataset.v);
 S.buf+=b.dataset.v;$('bt').textContent=S.buf||'_';
-if(S.buf===target){setTimeout(function(){speak('Birleştirdik! '+l.w+'! Harikasın!')},600);correct();$('bt').style.color='var(--mint)';confetti(15);setTimeout(function(){hide('s-build');startStg(3)},2500)}
-else if(target.indexOf(S.buf)!==0){setTimeout(function(){speak('Hmm, bu doğru sıra değil. Tekrar deneyelim! Önce '+l.s[0]+' hecesini bul!')},400);sfxNo();S.combo=0;S.wrongCount++;updHUD();if(S.wrongCount>=2)showMascotHint();setTimeout(function(){S.buf="";$('bt').textContent='_';$('bt').style.color='';document.querySelectorAll('#bl .tile').forEach(function(x){x.style.background='';x.style.borderColor=''})},500)}}})}
+if(S.buf===target){setTimeout(function(){speak(l.s.join(', ')+', birleşince, '+l.w+' oldu! Harika, çok güzel yaptın!')},600);correct();$('bt').style.color='var(--mint)';confetti(15);setTimeout(function(){hide('s-build');startStg(3)},2500)}
+else if(target.indexOf(S.buf)!==0){setTimeout(function(){speak('Bu hece şimdi değil... Önce, '+l.s[0]+', hecesini bulmalısın. Kutulara tekrar bak, ve, '+l.s[0]+', yazan kutuya dokun.')},400);sfxNo();S.combo=0;S.wrongCount++;updHUD();if(S.wrongCount>=2)showMascotHint();setTimeout(function(){S.buf="";$('bt').textContent='_';$('bt').style.color='';document.querySelectorAll('#bl .tile').forEach(function(x){x.style.background='';x.style.borderColor=''})},500)}}})}
 
 function showRead(){var l=letter();S.ri=0;var sh=[].concat(l.s).sort(function(){return Math.random()-.5});
 $('s-read').innerHTML='<div class="prompt">'+l.e+' '+l.w+'</div><div class="read-syls" id="rs">'+sh.map(function(s){return '<div class="syl" data-v="'+s+'">'+s+'</div>'}).join('')+'</div>';
 show('s-read');
-speak('Şimdi '+l.w+' kelimesini okuyacağız! Hecelere sırayla dokun. İlk önce '+l.s[0]+' hecesini bul ve dokun!');
+speak('Şimdi, '+l.w+', kelimesini birlikte okuyacağız... Ekranındaki kutulara bak. Her kutunun içinde bir hece var... Önce, '+l.s[0]+', hecesini bul, ve o kutuya parmağınla dokun.');
 document.querySelectorAll('#rs .syl').forEach(function(b){b.onclick=function(){if(b.classList.contains('done'))return;ea();stopSpeaking();
 if(b.dataset.v===l.s[S.ri]){b.classList.add('lit');speak(b.dataset.v);S.ri++;setTimeout(function(){b.classList.replace('lit','done')},400);
-if(S.ri>=l.s.length){setTimeout(function(){speak(l.s.join('')+'! '+l.w+' kelimesini okudun! Harikasın!')},500);correct();confetti(12);setTimeout(function(){hide('s-read');startStg(4)},3000)}
-else{setTimeout(function(){speak('Güzel! Şimdi '+l.s[S.ri]+' hecesini bul!')},600)}}
-else{wrong(b);speak('Bu '+b.dataset.v+'. Hayır, şimdi '+l.s[S.ri]+' hecesini arıyoruz!')}}})}
+if(S.ri>=l.s.length){setTimeout(function(){speak(l.s.join(', ')+'. '+l.w+'! Tebrikler, '+l.w+' kelimesini okudun! Çok güzel!')},500);correct();confetti(12);setTimeout(function(){hide('s-read');startStg(4)},3000)}
+else{setTimeout(function(){speak('Aferin! Şimdi, '+l.s[S.ri]+', hecesini bul, ve o kutuya dokun.')},600)}}
+else{wrong(b);speak('Bu, '+b.dataset.v+', hecesi... Ama şimdi, '+l.s[S.ri]+', hecesini arıyoruz. '+l.s[S.ri]+', yazan kutuya dokun.')}}})}
 
 function showMini(){var l=letter(),m=mascot();
 var corW={w:l.w,e:l.e},others=[];GR.forEach(function(gr){gr.l.forEach(function(x){if(x.t!==l.t)others.push({w:x.w,e:x.e})})});
@@ -730,11 +732,11 @@ $('s-mini').innerHTML='<div class="prompt">'+l.e+' '+l.t+'</div><div class="subp
 show('s-mini');
 var lsnd=LETTER_SOUNDS[l.t]||l.t;
 var cardNames=cards.map(function(c){return c.w}).join(', ');
-speak(m.name+' soruyor! Hangi kelime '+lsnd+' sesiyle başlar? Seçenekler: '+cardNames+'. '+lsnd+' sesini düşün ve doğru resme dokun!');
+speak(m.name+' sana soruyor... Ekranındaki resimlere bak. Dört tane resim var. Hangi resmin kelimesi, '+lsnd+', sesiyle başlıyor? Düşün, ve doğru resme parmağınla dokun.');
 document.querySelectorAll('#mc .mg-card').forEach(function(c){c.onclick=function(){if(c.classList.contains('ok'))return;ea();stopSpeaking();
 // Dokunulan kartın kelimesini söyle
-if(c.dataset.w===l.w){c.classList.add('ok');correct();speak('Evet! '+l.w+'! Doğru buldun!');confetti(20);setTimeout(function(){hide('s-mini');hide('mascot-btn');hide('mascot-pop');letterDone()},2500)}
-else{wrong(c);speak(c.dataset.w+'. Hayır, '+c.dataset.w+' değil. '+lsnd+' sesiyle başlayan kelimeyi bul!')}}})}
+if(c.dataset.w===l.w){c.classList.add('ok');correct();speak('Evet! '+l.w+'! Doğru buldun, aferin sana!');confetti(20);setTimeout(function(){hide('s-mini');hide('mascot-btn');hide('mascot-pop');letterDone()},2500)}
+else{wrong(c);speak('Bu, '+c.dataset.w+'. '+c.dataset.w+', '+lsnd+', sesiyle başlamıyor. Başka bir resme dokun.')}}})}
 
 function letterDone(){var l=letter();if(S.ld.indexOf(l.t)<0)S.ld.push(l.t);S.li++;S.li>=GR[S.gi].l.length?groupDone():startMascotChat()}
 
@@ -750,7 +752,7 @@ async function groupDone(){
     if(CK){
         addTyping();
         var aiCeleb=await aiChat(S.name+' '+g.n+' dünyasını tamamladı! Harfler: '+g.l.map(function(l){return l.t}).join(', ')+'. Onu tebrik et ve sorular sor!',
-        'Sen "'+m.name+'". Çocuğu tebrik et. Sonra "Şimdi ne yapmak istersin?" diye sor.');
+        'Sen "'+m.name+'". Çocuğu tebrik et. 2-3 kısa cümle. Emoji kullanma. Sesli okunacak metin yaz.');
         removeTyping();
         if(aiCeleb)await addMsg('mascot',aiCeleb,300);
     }
