@@ -24,7 +24,7 @@ const saved = load();
 
 export const useGameStore = create((set, get) => ({
   // ─── Ekran ───
-  screen: 'welcome', // welcome | name | worldSelect | game | celebration | teacher
+  screen: 'role', // role | welcome | name | worldSelect | game | celebration | teacher
   setScreen: (s) => set({ screen: s }),
 
   // ─── Çocuk ───
@@ -89,7 +89,7 @@ export const useGameStore = create((set, get) => ({
     set({
       childName: '', completedLetters: [], stars: 0, currentWorldId: null,
       currentLetter: null, currentPhase: PHASES.DISCOVER, conversationHistory: [],
-      assessments: {}, sessionCount: 0, screen: 'welcome',
+      assessments: {}, sessionCount: 0, screen: 'role',
     });
   },
 }));
