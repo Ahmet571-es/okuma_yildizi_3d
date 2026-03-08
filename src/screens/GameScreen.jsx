@@ -46,15 +46,13 @@ export default function GameScreen() {
     setPhaseScores({});
 
     (async () => {
-      const greeting = await getGreeting(letterData);
-      setMascotText(greeting);
-      await speak(greeting);
-
-      // İlk faz: Sesi Fark Etme
+      // Karşılama + ilk etkinlik tek mesajda (kopukluk olmasın)
       setCurrentPhase(PHASES.DISCOVER);
-      const prompt = buildPhasePrompt(PHASES.DISCOVER, letterData, 'start');
-      const reply = await getResponse(prompt, letterData, learnedLetters);
-      if (reply) { setMascotText(reply); await speak(reply); }
+      const combinedPrompt = `Çocuğu karşıla ve HEMEN ilk etkinliğe geç. Tek bir konuşma olsun, iki ayrı giriş yapma. Karşılamadan sonra direkt "${letterData.discoveryWords[0]}" kelimesini söyle ve içinde "${letterData.sound}" sesi var mı sor. Toplam 3-4 cümle.`;
+      const reply = await getResponse(combinedPrompt, letterData, learnedLetters);
+      const text = reply || `Merhaba! Bugün ${letterData.sound} sesini öğreneceğiz. İlk kelimem: ${letterData.discoveryWords[0]}. Bu kelimede ${letterData.sound} sesi var mı?`;
+      setMascotText(text);
+      await speak(text);
     })();
   }, [letterData]);
 
@@ -304,17 +302,17 @@ function buildPhasePrompt(phase, letterData, type) {
   if (type === 'start' || type === 'transition') {
     switch (phase) {
       case PHASES.DISCOVER:
-        return `Yeni faz: SESİ FARK ETME. Çocuğa kelimeler söyle ve içinde "${sound}" sesi var mı sor. Kelimeler: ${discoveryWords.join(', ')}. İlk kelimeyle başla.`;
+        return `Çocuğu zaten karşıladın. TEKRAR merhaba deme. Direkt oyuna geç. Bir kelime söyle ve içinde "${sound}" sesi var mı sor. Kelimeler: ${discoveryWords.join(', ')}. İlk kelimeyle başla. Kısa ol, 1-2 cümle.`;
       case PHASES.PRODUCE:
-        return `Yeni faz: SESİ ÜRETME. Çocuğa "${sound}" sesini söylemesini iste. Model ol: "${sound}!" de. Ağız pozisyonu açıkla.`;
+        return `Harika! Şimdi yeni aşama. TEKRAR merhaba deme. "${sound}" sesini çıkarmayı öğret. Model ol: "${sound}!" de. Ağız pozisyonunu açıkla. 2 cümle yeter.`;
       case PHASES.SYLLABLE:
-        return `Yeni faz: HECE OLUŞTURMA. İki sesi birleştir. Kullanılacak heceler: ${syllables.slice(0,4).join(', ')}. İlk heceyi göster: "${syllables[0]}" - sesleri yavaşça birleştir.`;
+        return `Süper! Şimdi hece kurma zamanı. TEKRAR merhaba deme. İki sesi birleştir. İlk hece: "${syllables[0]}". Sesleri yavaşça birleştirmesini söyle. 2 cümle.`;
       case PHASES.WORD:
-        return `Yeni faz: KELİME OKUMA. Hecelerden kelime oluştur. Kelimeler: ${words.slice(0,3).join(', ')}. İlk kelimeyi heceleyerek söyle.`;
+        return `Tebrikler! Kelime okuma zamanı. TEKRAR merhaba deme. İlk kelime: "${words[0]}". Heceleyerek söyle. 2 cümle.`;
       case PHASES.SENTENCE:
         return sentences?.length > 0
-          ? `Yeni faz: CÜMLE OKUMA. Basit cümle oku: "${sentences[0]}". Kelime kelime söyle, çocuk tekrarlasın.`
-          : `Son faz: Kelimeleri tekrar et ve tebrik et. Kelimeler: ${words.slice(0,3).join(', ')}`;
+          ? `Harika! Son aşama: cümle okuma. TEKRAR merhaba deme. Cümle: "${sentences[0]}". Kelime kelime söylet. 2 cümle.`
+          : `Son aşama! TEKRAR merhaba deme. Kelimeleri tekrar et ve tebrik et: ${words.slice(0, 3).join(', ')}. 2 cümle.`;
       default:
         return 'Devam et.';
     }
