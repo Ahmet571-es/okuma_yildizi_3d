@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import claudeRoutes from './routes/claude.js';
 import elevenlabsRoutes from './routes/elevenlabs.js';
 import googleTtsRoutes from './routes/google-tts.js';
+import googleSttRoutes from './routes/google-stt.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -23,8 +24,9 @@ app.use(express.json({ limit: '5mb' }));
 
 // ─── API Routes ───
 app.use('/api/claude', claudeRoutes);
-app.use('/api/tts', elevenlabsRoutes);        // ElevenLabs (fallback)
+app.use('/api/tts', elevenlabsRoutes);        // ElevenLabs TTS (fallback)
 app.use('/api/google-tts', googleTtsRoutes);   // Google Cloud TTS (primary)
+app.use('/api/google-stt', googleSttRoutes);   // Google Cloud STT (primary)
 
 // ─── Health Check ───
 app.get('/api/health', (_req, res) => {
@@ -32,8 +34,9 @@ app.get('/api/health', (_req, res) => {
     status: 'ok',
     env: isProd ? 'production' : 'development',
     claude: !!process.env.ANTHROPIC_API_KEY,
-    elevenlabs: !!process.env.ELEVENLABS_API_KEY,
     googleTts: !!process.env.GOOGLE_TTS_API_KEY,
+    googleStt: !!process.env.GOOGLE_TTS_API_KEY, // Aynı key
+    elevenlabs: !!process.env.ELEVENLABS_API_KEY,
   });
 });
 
