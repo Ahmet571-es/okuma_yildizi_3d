@@ -7,26 +7,30 @@ import ParticleField from '../components/ParticleField';
 
 export default function NameScreen() {
   const { setChildName, setScreen } = useGameStore();
-  const { isListening, transcript, startListening, stopListening } = useSpeechRecognition();
+  const { isListening, transcript, finalTranscript, completedAt, startListening, stopListening } = useSpeechRecognition();
   const { speak, isSpeaking } = useTextToSpeech();
   const [phase, setPhase] = useState('asking');
   const [name, setName] = useState('');
   const [asked, setAsked] = useState(false);
+  const lastProcessed = React.useRef(0);
 
   useEffect(() => {
     if (!asked) { setAsked(true); speak('Merhaba küçük kaşif! Adın ne? Mikrofona söyle!'); }
   }, [asked, speak]);
 
   useEffect(() => {
-    if (transcript && !isListening && phase === 'listening') {
-      const n = transcript.trim().split(' ')[0];
-      if (n.length > 0) {
-        const cap = n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
-        setName(cap); setPhase('confirming');
-        speak(`Senin adın ${cap}, doğru mu? Evet dersen başlayalım!`);
-      }
+    if (!finalTranscript || !completedAt) return;
+    if (completedAt <= lastProcessed.current) return;
+    if (phase !== 'listening') return;
+
+    lastProcessed.current = completedAt;
+    const n = finalTranscript.trim().split(' ')[0];
+    if (n.length > 0) {
+      const cap = n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
+      setName(cap); setPhase('confirming');
+      speak(`Senin adın ${cap}, doğru mu? Evet dersen başlayalım!`);
     }
-  }, [transcript, isListening, phase, speak]);
+  }, [finalTranscript, completedAt, phase, speak]);
 
   const handleMic = useCallback(() => {
     if (isSpeaking) return;

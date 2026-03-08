@@ -18,7 +18,7 @@ export default function GameScreen() {
     setScreen, clearConversation, getLearnedLettersForCurrent,
   } = useGameStore();
 
-  const { isListening, transcript, startListening, stopListening } = useSpeechRecognition();
+  const { isListening, transcript, finalTranscript, completedAt, startListening, stopListening } = useSpeechRecognition();
   const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech();
   const { getGreeting, getResponse, isLoading } = useClaudeDialogue();
 
@@ -28,7 +28,7 @@ export default function GameScreen() {
   const [phaseScores, setPhaseScores] = useState({});
   const [showStar, setShowStar] = useState(false);
   const initRef = useRef(false);
-  const processedRef = useRef('');
+  const lastProcessedAt = useRef(0);
 
   const world = getWorldById(currentWorldId);
   const letterData = getLetterData(currentLetter);
@@ -59,15 +59,17 @@ export default function GameScreen() {
   }, [letterData]);
 
   // ═══════════════════════════════════════
-  // TRANSCRIPT İŞLEME
+  // TRANSCRIPT İŞLEME — finalTranscript + completedAt
   // ═══════════════════════════════════════
   useEffect(() => {
-    if (!transcript || isListening || isSpeaking || isLoading) return;
-    if (processedRef.current === transcript) return;
-    processedRef.current = transcript;
+    if (!finalTranscript || !completedAt) return;
+    if (completedAt <= lastProcessedAt.current) return; // Zaten işlendi
+    if (isSpeaking || isLoading) return; // Maskot konuşuyor veya düşünüyor
 
-    handleChildResponse(transcript);
-  }, [transcript, isListening, isSpeaking, isLoading]);
+    lastProcessedAt.current = completedAt;
+    console.log('[Game] Çocuk dedi:', finalTranscript);
+    handleChildResponse(finalTranscript);
+  }, [finalTranscript, completedAt, isSpeaking, isLoading]);
 
   // ═══════════════════════════════════════
   // FAZ-BAZLI ÇOCUK YANITI İŞLEME
@@ -154,7 +156,7 @@ export default function GameScreen() {
       if (next && isNextLetterSameGroup(currentLetter)) {
         setShowStar(false);
         initRef.current = false;
-        processedRef.current = '';
+        lastProcessedAt.current = 0;
         setCurrentLetter(next);
       } else {
         setScreen('celebration');
@@ -168,7 +170,7 @@ export default function GameScreen() {
   const handleMic = useCallback(() => {
     if (isSpeaking || isLoading) return;
     if (isListening) stopListening();
-    else { setChildText(''); processedRef.current = ''; startListening(); }
+    else { setChildText(''); startListening(); }
   }, [isListening, isSpeaking, isLoading, startListening, stopListening]);
 
   const handleBack = () => {
@@ -219,6 +221,18 @@ export default function GameScreen() {
             text={mascotText} isSpeaking={isSpeaking} color={mascot.color} />
         )}
         {childText && <DialogueBubble type="child" text={childText} />}
+        {isListening && transcript && (
+          <div className="flex items-start gap-3 justify-end animate-pop">
+            <div className="max-w-[75%]">
+              <div className="bg-amber-400/20 backdrop-blur-sm rounded-2xl rounded-tr-sm px-4 py-3 border border-amber-400/30">
+                <p className="font-body text-base text-amber-200 leading-relaxed italic">{transcript}...</p>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-red-400/30 border-2 border-red-400 flex items-center justify-center shrink-0">
+              <div className="sound-wave text-red-400"><span/><span/><span/></div>
+            </div>
+          </div>
+        )}
         {isLoading && (
           <div className="flex items-center gap-2 pl-16">
             <div className="glass rounded-2xl px-4 py-2 flex gap-1">
