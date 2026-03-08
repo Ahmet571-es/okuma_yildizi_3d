@@ -22,8 +22,8 @@ const TURKISH_VOICES = {
   'tr-TR-Standard-E': { gender: 'MALE', description: 'Erkek - standart 2' },
 };
 
-// Varsayılan ses: Kadın WaveNet (çocuklara en uygun)
-const DEFAULT_VOICE = 'tr-TR-Wavenet-A';
+// Varsayılan ses: Kadın WaveNet-D (en temiz Türkçe telaffuz)
+const DEFAULT_VOICE = 'tr-TR-Wavenet-D';
 
 router.post('/speak', async (req, res) => {
   try {
@@ -37,22 +37,25 @@ router.post('/speak', async (req, res) => {
 
     const selectedVoice = voiceName || process.env.GOOGLE_TTS_VOICE || DEFAULT_VOICE;
 
+    // SSML ile daha doğru Türkçe telaffuz
+    const ssmlText = `<speak><lang xml:lang="tr-TR"><prosody rate="slow" pitch="+0.5st">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}</prosody></lang></speak>`;
+
     const response = await fetch(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          input: { text },
+          input: { ssml: ssmlText },
           voice: {
             languageCode: 'tr-TR',
             name: selectedVoice,
           },
           audioConfig: {
             audioEncoding: 'MP3',
-            speakingRate: 0.9,  // Çocuklar için biraz yavaş
-            pitch: 1.0,
-            volumeGainDb: 0,
+            speakingRate: 0.85,  // Çocuklar için yavaş ve net
+            pitch: 0.5,         // Biraz kalın, daha doğal
+            volumeGainDb: 2.0,  // Biraz daha yüksek ses
             effectsProfileId: ['small-bluetooth-speaker-class-device'],
           },
         }),
