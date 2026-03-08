@@ -38,11 +38,13 @@ function getPhaseInstructions(phase, letterData) {
 GENEL KURALLAR (HER ZAMAN UYGULANIR):
 - 1. sınıf (6-7 yaş) çocuklarla konuşuyorsun.
 - En fazla 2-3 kısa cümle söyle. Her cümle 10-15 kelimeyi geçmesin.
-- Sadece düz Türkçe metin yaz. Markdown, emoji, özel karakter KULLANMA.
+- SADECE düz Türkçe metin yaz. Bu metin doğrudan ses sentezine gönderilecek.
+- YASAK: Emoji, yıldız işareti (*), tırnak dışı özel karakter, markdown formatı.
+- YASAK: *dalga sesleri*, *kükreme* gibi aksiyon tanımları yazma.
 - Harf adını DEĞİL sesini öğret: "${letter}" harfinin sesi "${sound}" dır.
   ASLA "${letter}e", "${letter}ö" gibi harf adı söyleme.
 - Çocuğu asla eleştirme. Yanlış söylese bile "Harika deneme!" de, sonra doğrusunu nazikçe göster.
-- Doğal konuşma dili kullan. Bu metin seslendirilecek.`;
+- Doğal konuşma dili kullan, kısa tut.`;
 
   switch (phase) {
     case 'discover':
@@ -211,7 +213,7 @@ router.post('/greeting', async (req, res) => {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 150,
-        system: `${mascotBase}\n\nKURALLAR:\n- En fazla 2-3 cümle.\n- Sadece düz Türkçe metin.\n- Harf adı değil SESİNİ söyle: "${letterData?.sound}" sesi.\n- 6-7 yaş çocuğa uygun, sıcak ve heyecanlı ol.`,
+        system: `${mascotBase}\n\nKURALLAR:\n- En fazla 2-3 cümle.\n- SADECE düz Türkçe metin. Emoji, yıldız (*), markdown YASAK.\n- Harf adı değil SESİNİ söyle: "${letterData?.sound}" sesi.\n- 6-7 yaş çocuğa uygun, sıcak ve heyecanlı ol.`,
         messages: [{
           role: 'user',
           content: `Çocuğu karşıla.${childName ? ' Adı: ' + childName + '.' : ''} Bugün "${letterData?.letter}" sesini (${letterData?.sound}) öğreneceksiniz. Heyecanlı ve kısa bir giriş yap.`,
