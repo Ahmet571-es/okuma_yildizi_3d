@@ -173,6 +173,12 @@ export default function GameScreen() {
     else { setChildText(''); startListening(); }
   }, [isListening, isSpeaking, isLoading, startListening, stopListening]);
 
+  // Evet/Hayır butonları için manuel input
+  const setFinalTranscriptManual = useCallback((text) => {
+    setChildText(text);
+    handleChildResponse(text);
+  }, []);
+
   const handleBack = () => {
     stopSpeaking(); stopListening(); clearConversation(); setScreen('worldSelect');
   };
@@ -254,15 +260,34 @@ export default function GameScreen() {
 
       {/* Bottom Controls */}
       <div className="relative z-10 pb-5 pt-2 px-4">
-        <div className="flex items-center justify-center">
+        {/* Evet/Hayır butonları — Sesi Fark Etme fazında */}
+        {currentPhase === PHASES.DISCOVER && !isSpeaking && !isLoading && !showStar && (
+          <div className="flex justify-center gap-4 mb-3">
+            <button
+              onClick={() => setFinalTranscriptManual('Evet var')}
+              className="px-8 py-3 bg-emerald-500 hover:bg-emerald-400 rounded-full font-display text-lg text-white shadow-lg transition-all hover:scale-105 active:scale-95"
+            >
+              Evet var!
+            </button>
+            <button
+              onClick={() => setFinalTranscriptManual('Hayır yok')}
+              className="px-8 py-3 bg-rose-500 hover:bg-rose-400 rounded-full font-display text-lg text-white shadow-lg transition-all hover:scale-105 active:scale-95"
+            >
+              Hayır yok
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center justify-center gap-4">
           <MicButton isListening={isListening} disabled={isSpeaking || isLoading || showStar}
             onPress={handleMic} size="large" color={world.theme.accent} />
         </div>
         <p className="text-center text-white/40 text-xs font-body mt-2">
           {isSpeaking ? `${mascot.name} konuşuyor...` :
-           isListening ? 'Seni dinliyorum...' :
+           isListening ? 'Dinliyorum... Bitince mikrofona tekrar bas' :
            isLoading ? 'Düşünüyor...' :
-           PHASE_LABELS[currentPhase] || 'Mikrofona bas'}
+           currentPhase === PHASES.DISCOVER ? 'Butonlara bas veya mikrofona konuş' :
+           'Mikrofona basılı tut ve konuş'}
         </p>
       </div>
     </div>

@@ -9,6 +9,18 @@ export default function WelcomeScreen() {
   const [show, setShow] = useState(false);
   const [micOk, setMicOk] = useState(false);
 
+  const [tapCount, setTapCount] = useState(0);
+
+  // Gizli öğretmen erişimi: yıldıza 5 kez tıkla
+  const handleStarTap = () => {
+    const newCount = tapCount + 1;
+    setTapCount(newCount);
+    if (newCount >= 5) {
+      setTapCount(0);
+      setScreen('teacher');
+    }
+  };
+
   useEffect(() => { setTimeout(() => setShow(true), 400); }, []);
 
   const requestMic = async () => {
@@ -35,12 +47,11 @@ export default function WelcomeScreen() {
         ))}
       </div>
       <div className={`relative z-10 text-center transition-all duration-1000 ${show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-        <div className="text-8xl mb-4 animate-float">⭐</div>
+        <div className="text-8xl mb-4 animate-float cursor-pointer" onClick={handleStarTap}>⭐</div>
         <h1 className="font-display text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-400 to-orange-400">
           Yıldız Ülkesi
         </h1>
-        <p className="font-body text-xl text-purple-200 mt-2">Ses Temelli Okuma Macerası</p>
-        <p className="font-body text-sm text-purple-300/60 mt-1">MEB 2024 Maarif Modeli Uyumlu</p>
+        <p className="font-body text-xl text-purple-200 mt-2">Sesli Okuma Macerası</p>
       </div>
       <div className={`relative z-10 flex gap-6 mt-8 text-5xl transition-all duration-1000 delay-300 ${show ? 'opacity-100' : 'opacity-0'}`}>
         {['🦁','🐬','🦅','🦊','🐧'].map((e,i) => (
@@ -62,10 +73,6 @@ export default function WelcomeScreen() {
           </button>
         )}
       </div>
-      <button onClick={() => setScreen('teacher')}
-        className="absolute bottom-8 right-8 text-purple-400/40 hover:text-purple-300 text-xs font-body underline transition-colors z-10">
-        Öğretmen Paneli
-      </button>
     </div>
   );
 }

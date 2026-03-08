@@ -10,9 +10,18 @@ export default function WorldSelectScreen() {
   const { speak, isSpeaking } = useTextToSpeech();
   const [greeted, setGreeted] = useState(false);
 
+  const unlockedCount = WORLDS.filter(w => completedLetters.length >= w.unlockRequirement).length;
+
   useEffect(() => {
-    if (!greeted) { setGreeted(true); speak(`${childName}, hangi dünyaya gitmek istersin?`); }
-  }, [greeted, childName, speak]);
+    if (!greeted) {
+      setGreeted(true);
+      if (unlockedCount <= 1) {
+        speak(`${childName}, Orman Ülkesinde Aslan Ali seni bekliyor! Hadi başlayalım!`);
+      } else {
+        speak(`${childName}, ${unlockedCount} dünya seni bekliyor! Hangisine gitmek istersin?`);
+      }
+    }
+  }, [greeted, childName, unlockedCount, speak]);
 
   const getProgress = (w) => {
     const done = w.letters.filter(l => completedLetters.includes(l)).length;
@@ -39,7 +48,9 @@ export default function WorldSelectScreen() {
       <div className="relative z-10 pt-6 px-6 flex items-center justify-between">
         <div>
           <h2 className="font-display text-2xl text-white font-bold">Merhaba {childName}!</h2>
-          <p className="font-body text-purple-300 text-sm">Dünya seç, ses öğren</p>
+          <p className="font-body text-purple-300 text-sm">
+            {unlockedCount <= 1 ? 'İlk maceran seni bekliyor!' : `${unlockedCount} dünya açık!`}
+          </p>
         </div>
         <div className="flex items-center gap-2 glass rounded-full px-4 py-2">
           <span className="text-xl">⭐</span>
@@ -47,14 +58,14 @@ export default function WorldSelectScreen() {
         </div>
       </div>
 
-      {/* Overall MEB progress */}
+      {/* Overall progress */}
       <div className="relative z-10 mx-6 mt-4">
         <div className="h-3 bg-white/10 rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500"
             style={{ width: `${(completedLetters.length / 29) * 100}%` }} />
         </div>
         <div className="flex justify-between mt-1">
-          <p className="text-purple-300/50 text-xs font-body">MEB Ses Grubu İlerlemesi</p>
+          <p className="text-purple-300/50 text-xs font-body">Öğrendiğin sesler</p>
           <p className="text-purple-300/70 text-xs font-body">{completedLetters.length}/29 ses</p>
         </div>
       </div>
@@ -73,25 +84,29 @@ export default function WorldSelectScreen() {
                   {unlocked ? w.mascot.emoji : '🔒'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-display text-xl text-white font-bold flex items-center gap-2">
+                  <h3 className="font-display text-xl text-white font-bold">
                     {w.name}
-                    <span className="text-xs text-white/40 font-body font-normal">{w.subtitle} ({w.weeks} hafta)</span>
-                    {prog.pct === 100 && <span className="text-sm">✅</span>}
+                    {prog.pct === 100 && <span className="text-sm ml-2">✅</span>}
                   </h3>
                   <p className="font-body text-sm text-purple-300 mb-2">
-                    {unlocked ? `${w.mascot.name} ile ses macerası` : `${w.unlockRequirement} ses tamamlanmalı`}
+                    {unlocked
+                      ? `${w.mascot.name} ile ${w.letters.length} ses öğreneceksin!`
+                      : `Önce ${w.unlockRequirement} ses öğren, sonra bu dünya açılır`}
                   </p>
                   {unlocked && (
                     <div className="flex gap-1.5 flex-wrap">
-                      {w.letters.map(letter => (
-                        <div key={letter}
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold font-display transition-all
-                            ${completedLetters.includes(letter)
-                              ? 'bg-amber-400 text-amber-900 shadow-md shadow-amber-400/30'
-                              : 'bg-white/10 text-white/50'}`}>
-                          {letter}
-                        </div>
-                      ))}
+                      {w.letters.map(letter => {
+                        const done = completedLetters.includes(letter);
+                        return (
+                          <div key={letter} title={`${letter} sesi`}
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold font-display transition-all
+                              ${done
+                                ? 'bg-amber-400 text-amber-900 shadow-md shadow-amber-400/30'
+                                : 'bg-white/10 text-white/50'}`}>
+                            {done ? `${letter}✓` : letter}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -104,11 +119,7 @@ export default function WorldSelectScreen() {
         })}
       </div>
 
-      <div className="relative z-10 pb-6 px-6 flex justify-between">
-        <button onClick={() => setScreen('teacher')}
-          className="text-purple-400/40 hover:text-purple-300 text-xs font-body underline transition-colors">
-          Öğretmen Paneli
-        </button>
+      <div className="relative z-10 pb-6 px-6 flex justify-center">
         <button onClick={() => { if (confirm('İlerleme sıfırlansın mı?')) useGameStore.getState().resetProgress(); }}
           className="text-purple-400/40 hover:text-purple-300 text-xs font-body underline transition-colors">
           Sıfırla
