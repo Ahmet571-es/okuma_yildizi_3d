@@ -416,6 +416,14 @@ function SoundMeterGame({ letter, letterData, onComplete, accent }) {
       )}
 
       {success && <div style={{ fontSize:48, animation:'pop 0.5s ease' }}>🌟</div>}
+
+      {!success && (
+        <button onClick={() => onComplete(1)} style={{
+          marginTop:8, padding:'10px 28px', borderRadius:12, border:'none',
+          background:'rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.7)',
+          fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:"'Fredoka'",
+        }}>Geç →</button>
+      )}
     </div>
   );
 }
@@ -499,6 +507,14 @@ function TracingGame({ letter, onComplete, accent }) {
             boxShadow:`0 4px 15px ${accent}66`
           }}>✅ Kontrol Et</button>
         </div>
+      )}
+
+      {!done && (
+        <button onClick={() => onComplete(1)} style={{
+          marginTop:8, padding:'10px 28px', borderRadius:12, border:'none',
+          background:'rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.7)',
+          fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:"'Fredoka'",
+        }}>Geç →</button>
       )}
     </div>
   );
@@ -616,6 +632,12 @@ function DragDropSyllableGame({ letter, letterData, onComplete, accent }) {
           animation:'pop 0.3s ease', boxShadow:'0 4px 15px rgba(0,0,0,0.3)'
         }}>{feedback.text}</div>
       )}
+
+      <button onClick={() => onComplete(1)} style={{
+        marginTop:4, padding:'10px 28px', borderRadius:12, border:'none',
+        background:'rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.7)',
+        fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:"'Fredoka'",
+      }}>Geç →</button>
     </div>
   );
 }
@@ -706,6 +728,12 @@ function PicMatchGame({ letter, letterData, onComplete, accent }) {
           background: feedback.type === 'success' ? '#10B981' : '#EF4444', color:'#fff', animation:'pop 0.3s ease'
         }}>{feedback.text}</div>
       )}
+
+      <button onClick={() => onComplete(1)} style={{
+        marginTop:4, padding:'10px 28px', borderRadius:12, border:'none',
+        background:'rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.7)',
+        fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:"'Fredoka'",
+      }}>Geç →</button>
     </div>
   );
 }
@@ -820,6 +848,14 @@ function WordOrderGame({ letter, letterData, onComplete, accent }) {
           padding:'10px 24px', borderRadius:12, fontWeight:700, fontSize:15, fontFamily:"'Nunito'",
           background: feedback.type === 'success' ? '#10B981' : '#EF4444', color:'#fff', animation:'pop 0.3s ease'
         }}>{feedback.text}</div>
+      )}
+
+      {!done && (
+        <button onClick={() => onComplete(1)} style={{
+          marginTop:4, padding:'10px 28px', borderRadius:12, border:'none',
+          background:'rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.7)',
+          fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:"'Fredoka'",
+        }}>Geç →</button>
       )}
     </div>
   );
