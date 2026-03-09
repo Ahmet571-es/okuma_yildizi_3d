@@ -168,47 +168,59 @@ function BalloonGame({ letter, letterData, onComplete, accent }) {
   const [balloons, setBalloons] = useState([]);
   const [score, setScore] = useState(0);
   const [total, setTotal] = useState(0);
-  const [popped, setPopped] = useState(new Set());
+  const [poppedIds, setPoppedIds] = useState([]);
   const [feedback, setFeedback] = useState(null);
   const [round, setRound] = useState(0);
+  const [roundComplete, setRoundComplete] = useState(false);
+  const scoreRef = useRef(0);
+  const roundRef = useRef(0);
 
   useEffect(() => {
     const words = letterData.discoveryWords || ['araba','top','anne','kuş'];
     const newBalloons = shuffle(words).map((w,i) => ({
-      id: i, word: w,
+      id: `${round}-${i}`, word: w,
       hasSound: w.toLowerCase().includes(letterData.sound.toLowerCase()),
       color: ['#FF6B6B','#4ECDC4','#FFE66D','#A78BFA','#F97316','#06B6D4'][i%6],
       x: 15 + (i%3)*30 + Math.random()*10,
       delay: i * 0.4,
     }));
     setBalloons(newBalloons);
-    setPopped(new Set());
+    setPoppedIds([]);
     setFeedback(null);
+    setRoundComplete(false);
+    roundRef.current = round;
   }, [round]);
 
   const popBalloon = (b) => {
-    if (popped.has(b.id)) return;
-    setPopped(p => new Set([...p, b.id]));
+    if (poppedIds.includes(b.id) || roundComplete) return;
+
+    const newPopped = [...poppedIds, b.id];
+    setPoppedIds(newPopped);
     setTotal(t => t + 1);
+
     if (b.hasSound) {
-      setScore(s => s + 1);
-      setFeedback({ type:'success', text:`Harika! "${b.word}" kelimesinde "${letterData.sound}" sesi var!` });
+      const newScore = score + 1;
+      setScore(newScore);
+      scoreRef.current = newScore;
+      setFeedback({ type:'success', text:`Harika! "${b.word}" kelimesinde "${letterData.sound}" sesi var! 🎉` });
     } else {
-      setFeedback({ type:'error', text:`"${b.word}" kelimesinde "${letterData.sound}" sesi yok. Tekrar dene!` });
+      setFeedback({ type:'error', text:`"${b.word}" kelimesinde "${letterData.sound}" sesi yok.` });
     }
-    setTimeout(() => setFeedback(null), 2000);
-  };
+    setTimeout(() => setFeedback(null), 1800);
 
-  const allDone = popped.size === balloons.length;
-
-  useEffect(() => {
-    if (allDone && balloons.length > 0) {
+    // Check if all balloons popped
+    if (newPopped.length === balloons.length) {
+      setRoundComplete(true);
       setTimeout(() => {
-        if (round < 1) { setRound(r => r+1); }
-        else { onComplete(Math.min(3, score)); }
-      }, 2000);
+        if (roundRef.current < 1) {
+          setRound(r => r + 1);
+        } else {
+          const finalScore = Math.max(1, Math.min(3, scoreRef.current));
+          onComplete(finalScore);
+        }
+      }, 1800);
     }
-  }, [allDone]);
+  };
 
   return (
     <div style={{ position:'relative', minHeight:400, display:'flex', flexDirection:'column', alignItems:'center' }}>
@@ -218,12 +230,14 @@ function BalloonGame({ letter, letterData, onComplete, accent }) {
       <div style={{ fontSize:14, color:'rgba(255,255,255,0.7)', marginBottom:16 }}>Puan: {score} / {total}</div>
 
       <div style={{ position:'relative', width:'100%', height:350, overflow:'hidden', borderRadius:20, background:'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.3) 100%)' }}>
-        {balloons.map(b => (
+        {balloons.map(b => {
+          const isPopped = poppedIds.includes(b.id);
+          return (
           <div key={b.id} onClick={() => popBalloon(b)} style={{
-            position:'absolute', left:`${b.x}%`, bottom: popped.has(b.id) ? '-100px' : '10%',
-            width:90, height:110, cursor:'pointer', transition: popped.has(b.id) ? 'all 0.5s ease' : 'none',
-            opacity: popped.has(b.id) ? 0 : 1, transform: popped.has(b.id) ? 'scale(1.5)' : 'scale(1)',
-            animation: popped.has(b.id) ? 'none' : `float 2s ease-in-out infinite ${b.delay}s`,
+            position:'absolute', left:`${b.x}%`, bottom: isPopped ? '-100px' : '10%',
+            width:90, height:110, cursor:'pointer', transition: isPopped ? 'all 0.5s ease' : 'none',
+            opacity: isPopped ? 0 : 1, transform: isPopped ? 'scale(1.5)' : 'scale(1)',
+            animation: isPopped ? 'none' : `float 2s ease-in-out infinite ${b.delay}s`,
           }}>
             <div style={{
               width:80, height:95, borderRadius:'50%', background:`radial-gradient(circle at 30% 30%, ${b.color}ee, ${b.color}88)`,
@@ -235,7 +249,8 @@ function BalloonGame({ letter, letterData, onComplete, accent }) {
             </div>
             <div style={{ width:2, height:15, background:'rgba(255,255,255,0.3)', margin:'0 auto' }} />
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {feedback && (
