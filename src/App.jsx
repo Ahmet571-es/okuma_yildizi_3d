@@ -180,8 +180,6 @@ function BalloonGame({ letter, letterData, onComplete, accent }) {
       id: i, word: w,
       hasSound: w.toLowerCase().includes(letterData.sound.toLowerCase()),
       color: ['#FF6B6B','#4ECDC4','#FFE66D','#A78BFA','#F97316','#06B6D4'][i%6],
-      x: 10 + (i%3)*28 + Math.random()*8,
-      delay: i * 0.3,
     }));
     const n = bs.filter(b => b.hasSound).length;
     setBalloons(bs);
@@ -206,9 +204,9 @@ function BalloonGame({ letter, letterData, onComplete, accent }) {
       setPoppedSet(prev => { const ns = new Set(prev); ns.add(b.id); return ns; });
       const newFound = found + 1;
       setFound(newFound);
-      setFeedback({ type:'success', text:`Harika! "${b.word}" kelimesinde "${letterData.sound}" sesi var! 🎉` });
+      setFeedback({ type:'success', text:`Harika! "${b.word}" → "${letterData.sound}" sesi var! 🎉` });
       if (newFound >= needed) {
-        setFeedback({ type:'success', text:`Tebrikler! Tüm "${letterData.sound}" seslerini buldun! 🌟` });
+        setFeedback({ type:'success', text:`Tebrikler! Hepsini buldun! 🌟` });
         setDone(true);
         const s = wrongRef.current === 0 ? 3 : wrongRef.current <= 2 ? 2 : 1;
         setTimeout(() => onComplete(s), 2000);
@@ -218,43 +216,73 @@ function BalloonGame({ letter, letterData, onComplete, accent }) {
     } else {
       wrongRef.current += 1;
       setShakingId(b.id);
-      setFeedback({ type:'error', text:`"${b.word}" kelimesinde "${letterData.sound}" sesi yok!` });
+      setFeedback({ type:'error', text:`"${b.word}" → "${letterData.sound}" sesi yok!` });
       setTimeout(() => { setShakingId(null); setFeedback(null); }, 1200);
     }
   };
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}>
-      <div style={{ fontSize:18, fontWeight:700, color:'#fff', fontFamily:"'Fredoka'" }}>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
+      <div style={{ fontSize:18, fontWeight:700, color:'#fff', fontFamily:"'Fredoka'", textAlign:'center' }}>
         "{letterData.sound}" sesini içeren balonları patlat! 🎈
       </div>
       <div style={{ fontSize:14, color:'rgba(255,255,255,0.7)' }}>
         {found} / {needed} doğru balon bulundu
       </div>
 
-      <div style={{ position:'relative', width:'100%', height:300, overflow:'hidden', borderRadius:20, background:'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.3) 100%)' }}>
-        {balloons.map(b => {
+      {/* Grid layout - 2x2, big touch targets */}
+      <div style={{
+        display:'grid', gridTemplateColumns:'1fr 1fr', gap:20,
+        width:'100%', maxWidth:360, padding:10,
+      }}>
+        {balloons.map((b, i) => {
           const isPopped = poppedSet.has(b.id);
           const isShaking = shakingId === b.id;
           return (
-          <div key={b.id} onClick={() => popBalloon(b)} style={{
-            position:'absolute', left:`${b.x}%`, bottom: isPopped ? '-120px' : '10%',
-            width:90, height:110, cursor: isPopped || done ? 'default' : 'pointer',
-            transition: isPopped ? 'all 0.6s ease' : 'none', opacity: isPopped ? 0 : 1,
-            animation: isPopped ? 'none' : isShaking ? 'shake 0.4s ease' : `float 2s ease-in-out infinite ${b.delay}s`,
-          }}>
-            <div style={{
-              width:80, height:95, borderRadius:'50%',
-              background: isShaking ? 'radial-gradient(circle at 30% 30%, #EF444488, #EF444444)'
-                : `radial-gradient(circle at 30% 30%, ${b.color}ee, ${b.color}88)`,
-              display:'flex', alignItems:'center', justifyContent:'center',
-              border: isShaking ? '3px solid #EF4444' : '2px solid rgba(255,255,255,0.3)',
-              boxShadow: `0 4px 15px ${b.color}44`, transition:'all 0.3s',
+            <div key={b.id} onClick={() => popBalloon(b)} style={{
+              display:'flex', flexDirection:'column', alignItems:'center',
+              cursor: isPopped || done ? 'default' : 'pointer',
+              opacity: isPopped ? 0.15 : 1,
+              transform: isPopped ? 'scale(0.7)' : 'scale(1)',
+              transition: 'all 0.5s ease',
+              animation: isPopped ? 'none' : isShaking ? 'shake 0.4s ease' : `float ${2 + i * 0.2}s ease-in-out infinite`,
             }}>
-              <div style={{ fontSize:15, fontWeight:800, color:'#fff', textShadow:'0 1px 3px rgba(0,0,0,0.3)', fontFamily:"'Fredoka'" }}>{b.word}</div>
+              {/* Balloon body */}
+              <div style={{
+                width: 100, height: 120, borderRadius: '50%',
+                background: isPopped
+                  ? 'rgba(255,255,255,0.1)'
+                  : isShaking
+                    ? 'radial-gradient(circle at 35% 30%, #EF444499, #EF444455)'
+                    : `radial-gradient(circle at 35% 30%, ${b.color}, ${b.color}99)`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: isShaking ? '3px solid #EF4444' : '3px solid rgba(255,255,255,0.35)',
+                boxShadow: isPopped ? 'none' : `0 6px 25px ${b.color}55`,
+                transition: 'all 0.3s',
+                position: 'relative',
+              }}>
+                {/* Shine effect */}
+                {!isPopped && <div style={{
+                  position:'absolute', top:15, left:20, width:18, height:24,
+                  borderRadius:'50%', background:'rgba(255,255,255,0.35)',
+                  transform:'rotate(-30deg)',
+                }} />}
+                <div style={{
+                  fontSize: 17, fontWeight: 900, color: '#fff',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  fontFamily: "'Fredoka'",
+                  textDecoration: isPopped ? 'line-through' : 'none',
+                }}>{b.word}</div>
+              </div>
+              {/* Balloon string */}
+              <div style={{
+                width: 2, height: 25,
+                background: isPopped ? 'transparent' : 'rgba(255,255,255,0.3)',
+              }} />
+              {/* Popped indicator */}
+              {isPopped && <div style={{ fontSize: 24, marginTop: -20 }}>💥</div>}
             </div>
-            <div style={{ width:2, height:15, background:'rgba(255,255,255,0.3)', margin:'0 auto' }} />
-          </div>);
+          );
         })}
       </div>
 
@@ -262,15 +290,16 @@ function BalloonGame({ letter, letterData, onComplete, accent }) {
         <div style={{
           background: feedback.type === 'success' ? '#10B981' : '#EF4444', color:'#fff',
           padding:'12px 24px', borderRadius:12, fontWeight:700, fontSize:15,
-          animation:'pop 0.3s ease', fontFamily:"'Nunito'", textAlign:'center'
+          animation:'pop 0.3s ease', fontFamily:"'Nunito'", textAlign:'center',
+          maxWidth:'90%',
         }}>{feedback.text}</div>
       )}
 
       {!done && (
         <button onClick={goNext} style={{
-          marginTop:4, padding:'12px 32px', borderRadius:14, border:'none',
+          padding:'14px 36px', borderRadius:16, border:'none',
           background: found > 0 ? accent : 'rgba(255,255,255,0.15)',
-          color:'#fff', fontSize:16, fontWeight:800, cursor:'pointer',
+          color:'#fff', fontSize:17, fontWeight:800, cursor:'pointer',
           fontFamily:"'Fredoka'", boxShadow: found > 0 ? `0 4px 15px ${accent}66` : 'none',
           animation: found >= needed && !done ? 'pulse 1.5s ease infinite' : 'none',
         }}>{found >= needed ? '🌟 Sonraki Faz →' : 'Geç →'}</button>
