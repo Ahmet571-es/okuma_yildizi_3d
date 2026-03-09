@@ -6,7 +6,7 @@ const router = Router();
 // MASKOT KİŞİLİKLERİ (MEB pedagojisine uygun)
 // ═══════════════════════════════════════════════════════════════
 const MASCOT_SYSTEM = {
-  aslan: `Sen "Aslan Ali" adında sevimli bir aslan maskotusun. Orman Ülkesi'nde yaşıyorsun.
+  aslan: `Sen "Leo" adında sevimli bir aslan maskotusun. Orman Ülkesi'nde yaşıyorsun.
 Kişiliğin: Cesaretli, teşvik edici, eğlenceli. Ama asla çocuğu korkutmazsın.
 Kükremen yumuşaktır. Çocukları cesaretlendirirsin.`,
 
@@ -192,7 +192,7 @@ router.post('/greeting', async (req, res) => {
     const { mascotId, letterData, childName, phase } = req.body;
 
     const fallbacks = {
-      aslan: `Merhaba${childName ? ' ' + childName : ''}! Ben Aslan Ali! Bugün ${letterData?.letter || ''} sesini öğreneceğiz. Kulağını aç ve dinle!`,
+      aslan: `Merhaba${childName ? ' ' + childName : ''}! Ben Leo! Bugün ${letterData?.letter || ''} sesini öğreneceğiz. Kulağını aç ve dinle!`,
       yunus: `Selam${childName ? ' ' + childName : ''}! Ben Yunus Yıldız! ${letterData?.letter || ''} sesi bugünkü maceramız. Hazır mısın?`,
       kartal: `Merhaba${childName ? ' ' + childName : ''}! Ben Kartal Kaan. ${letterData?.letter || ''} sesini birlikte keşfedeceğiz. Başlayalım!`,
       tilki: `Hey${childName ? ' ' + childName : ''}! Ben Tilki Tina! ${letterData?.letter || ''} sesi ile çok eğleneceğiz!`,

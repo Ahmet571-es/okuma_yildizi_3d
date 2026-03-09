@@ -38,14 +38,16 @@ export const GROUP_INFO = [
 export const PHASES = {
   DISCOVER:  'discover',   // 1. Sesi Fark Etme (ses duyma, ayırt etme)
   PRODUCE:   'produce',    // 2. Sesi Üretme (doğru seslendirme)
-  SYLLABLE:  'syllable',   // 3. Hece Oluşturma (ses birleştirme)
-  WORD:      'word',       // 4. Kelime Oluşturma (hecelerden kelime)
-  SENTENCE:  'sentence',   // 5. Cümle Oluşturma (kelimelerden cümle)
+  WRITE:     'write',      // 3. Harfi Yazma (parmakla çizme)
+  SYLLABLE:  'syllable',   // 4. Hece Oluşturma (ses birleştirme)
+  WORD:      'word',       // 5. Kelime Oluşturma (hecelerden kelime)
+  SENTENCE:  'sentence',   // 6. Cümle Oluşturma (kelimelerden cümle)
 };
 
 export const PHASE_LABELS = {
   [PHASES.DISCOVER]: 'Sesi Fark Et',
   [PHASES.PRODUCE]:  'Sesi Söyle',
+  [PHASES.WRITE]:    'Harfi Yaz',
   [PHASES.SYLLABLE]: 'Hece Kur',
   [PHASES.WORD]:     'Kelime Oku',
   [PHASES.SENTENCE]: 'Cümle Kur',
@@ -64,7 +66,7 @@ export const CURRICULUM = {
     syllables: ['a'],
     words: [],  // İlk harf — henüz kelime yok, sadece ses
     sentences: [],
-    discoveryWords: ['araba', 'ayı', 'anne', 'ağaç'],
+    discoveryWords: ['araba', 'süt', 'anne', 'top'],
     discoveryPrompt: 'Bu kelimelerde "a" sesi var mı yok mu?',
   },
   N: {
@@ -73,7 +75,7 @@ export const CURRICULUM = {
     syllables: ['an', 'na'],
     words: ['an'],
     sentences: [],
-    discoveryWords: ['nine', 'nar', 'anne', 'masa'],
+    discoveryWords: ['nine', 'top', 'anne', 'kuş'],
     discoveryPrompt: 'Hangi kelimelerde "n" sesi duyuyorsun?',
   },
   E: {

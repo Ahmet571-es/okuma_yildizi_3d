@@ -16,7 +16,7 @@ export default function WorldSelectScreen() {
     if (!greeted) {
       setGreeted(true);
       if (unlockedCount <= 1) {
-        speak(`${childName}, Orman Ülkesinde Aslan Ali seni bekliyor! Hadi başlayalım!`);
+        speak(`${childName}, Orman Ülkesinde Leo seni bekliyor! Hadi başlayalım!`);
       } else {
         speak(`${childName}, ${unlockedCount} dünya seni bekliyor! Hangisine gitmek istersin?`);
       }

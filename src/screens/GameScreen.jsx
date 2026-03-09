@@ -8,6 +8,7 @@ import { getLetterData, getNextLetter, isNextLetterSameGroup, PHASES, PHASE_LABE
 import MicButton from '../components/MicButton';
 import DialogueBubble from '../components/DialogueBubble';
 import LetterDisplay from '../components/LetterDisplay';
+import LetterTracing from '../components/LetterTracing';
 import PhaseIndicator from '../components/PhaseIndicator';
 import ParticleField from '../components/ParticleField';
 
@@ -97,23 +98,22 @@ export default function GameScreen() {
   // FAZ İLERLEME
   // ═══════════════════════════════════════
   const advancePhase = async () => {
-    const phaseOrder = [PHASES.DISCOVER, PHASES.PRODUCE, PHASES.SYLLABLE, PHASES.WORD, PHASES.SENTENCE];
+    const phaseOrder = [PHASES.DISCOVER, PHASES.PRODUCE, PHASES.WRITE, PHASES.SYLLABLE, PHASES.WORD, PHASES.SENTENCE];
     const currentIdx = phaseOrder.indexOf(currentPhase);
 
-    // İlk harf (A) - kelime/cümle fazı atlansın
-    if (letterData.order === 1 && currentIdx >= 1) {
-      // A harfi: sadece discover + produce (kelime henüz yok)
+    // İlk harf (A) - hece/kelime/cümle yok ama yazma var
+    if (letterData.order === 1 && currentIdx >= 2) {
       await handleLetterComplete();
       return;
     }
 
     // İlk 2 harf (A,N) - cümle yok
-    if (letterData.order <= 2 && currentIdx >= 3) {
+    if (letterData.order <= 2 && currentIdx >= 4) {
       await handleLetterComplete();
       return;
     }
 
-    // İlk 3 harf - cümle kısıtlı
+    // Cümle yoksa kelimeden sonra bitir
     if (letterData.sentences?.length === 0 && currentPhase === PHASES.WORD) {
       await handleLetterComplete();
       return;
@@ -124,13 +124,29 @@ export default function GameScreen() {
       setCurrentPhase(nextPhase);
       setPhaseProgress(0);
 
-      // Yeni faz başlangıç prompt'u
-      const prompt = buildPhasePrompt(nextPhase, letterData, 'transition');
-      const reply = await getResponse(prompt, letterData, learnedLetters);
-      if (reply) { setMascotText(reply); await speak(reply); }
+      // WRITE fazı için özel mesaj
+      if (nextPhase === PHASES.WRITE) {
+        const writeMsg = `Harika! Şimdi ${letterData.letter} harfini yazma zamanı! Parmağınla ekrandaki harfin üzerinden geç.`;
+        setMascotText(writeMsg);
+        await speak(writeMsg);
+      } else {
+        const prompt = buildPhasePrompt(nextPhase, letterData, 'transition');
+        const reply = await getResponse(prompt, letterData, learnedLetters);
+        if (reply) { setMascotText(reply); await speak(reply); }
+      }
     } else {
       await handleLetterComplete();
     }
+  };
+
+  // WRITE fazı tamamlandığında
+  const handleWriteComplete = async () => {
+    const score = 3;
+    setPhaseScores(prev => ({ ...prev, [PHASES.WRITE]: score }));
+    const msg = `Çok güzel yazdın! ${letterData.letter} harfini artık yazabiliyorsun!`;
+    setMascotText(msg);
+    await speak(msg);
+    setTimeout(() => advancePhase(), 1000);
   };
 
   // ═══════════════════════════════════════
@@ -185,8 +201,9 @@ export default function GameScreen() {
     return <div className="h-full w-full flex items-center justify-center bg-gray-900 text-white"><p>Yükleniyor...</p></div>;
   }
 
-  const phaseOrder = [PHASES.DISCOVER, PHASES.PRODUCE, PHASES.SYLLABLE, PHASES.WORD, PHASES.SENTENCE];
-  const activePhasesCount = letterData.order <= 1 ? 2 : letterData.order <= 2 ? 4 : letterData.sentences?.length > 0 ? 5 : 4;
+  const phaseOrder = [PHASES.DISCOVER, PHASES.PRODUCE, PHASES.WRITE, PHASES.SYLLABLE, PHASES.WORD, PHASES.SENTENCE];
+  const activePhasesCount = letterData.order <= 1 ? 3 : letterData.order <= 2 ? 5 : letterData.sentences?.length > 0 ? 6 : 5;
+  const isWritePhase = currentPhase === PHASES.WRITE;
 
   return (
     <div className={`relative h-full w-full bg-gradient-to-b ${world.theme.bg} flex flex-col overflow-hidden`}>
@@ -215,8 +232,14 @@ export default function GameScreen() {
         accentColor={world.theme.accent}
       />
 
-      {/* Letter Display */}
-      <LetterDisplay letter={letterData.letter} sound={letterData.sound} mouth={letterData.mouth} accentColor={world.theme.accent} />
+      {/* Letter Display or Writing */}
+      {isWritePhase ? (
+        <div className="relative z-10 flex-shrink-0 py-2">
+          <LetterTracing letter={letterData.letter} accentColor={world.theme.accent} onComplete={handleWriteComplete} />
+        </div>
+      ) : (
+        <LetterDisplay letter={letterData.letter} sound={letterData.sound} mouth={letterData.mouth} accentColor={world.theme.accent} />
+      )}
 
       {/* Dialogue */}
       <div className="relative z-10 flex-1 overflow-y-auto px-4 py-2 space-y-3">
@@ -256,7 +279,8 @@ export default function GameScreen() {
         </div>
       )}
 
-      {/* Bottom Controls */}
+      {/* Bottom Controls — WRITE fazında gizle */}
+      {!isWritePhase && (
       <div className="relative z-10 pb-5 pt-2 px-4">
         {/* Evet/Hayır butonları — Sesi Fark Etme fazında */}
         {currentPhase === PHASES.DISCOVER && !isSpeaking && !isLoading && !showStar && (
@@ -288,6 +312,7 @@ export default function GameScreen() {
            'Mikrofona basılı tut ve konuş'}
         </p>
       </div>
+      )}
     </div>
   );
 }
@@ -322,17 +347,25 @@ function buildPhasePrompt(phase, letterData, type) {
 
 function buildPhaseContext(phase, letterData, childText, progress) {
   const { sound, discoveryWords, syllables, words, sentences } = letterData;
+  
+  // Discovery kelimelerini sırayla kullan — bazıları sesi İÇERMEZ (hayır cevabı için)
+  const discoverSequence = [...discoveryWords]; // ['araba','ayı','anne','ağaç'] gibi — son eleman sesi içermeyebilir
+  const currentWord = discoverSequence[Math.min(progress, discoverSequence.length - 1)];
+  const hasSound = currentWord.toLowerCase().includes(sound.toLowerCase());
+  
   switch (phase) {
     case PHASES.DISCOVER:
-      return `Çocuk "${childText}" dedi. "${sound}" sesi var mı sorusuna cevap verdi. Doğru mu? ${progress < 3 ? 'Sonraki kelimeyi sor: ' + (discoveryWords[progress] || discoveryWords[0]) : 'Harika! Faz bitti, tebrik et.'}`;
+      return `Çocuk "${childText}" dedi. Önceki kelimeye cevap verdi. ${progress < 3 
+        ? `Şimdi FARKLI bir kelime sor. Sıradaki kelime: "${currentWord}". Bu kelimede "${sound}" sesi ${hasSound ? 'VAR' : 'YOK'}. Sadece kelimeyi söyle ve "${sound}" sesi var mı diye sor. Önceki kelimeleri TEKRARLAMA.` 
+        : 'Harika! Faz bitti, kısaca tebrik et ve devam edelim de.'}`;
     case PHASES.PRODUCE:
-      return `Çocuk "${childText}" dedi. "${sound}" sesini söylemeye çalıştı. Teşvik et.${progress < 3 ? ' Tekrar söylemesini iste.' : ' Süper söyledi! Faz bitti.'}`;
+      return `Çocuk "${childText}" dedi. "${sound}" sesini söylemeye çalıştı. Teşvik et.${progress < 3 ? ' Farklı bir şekilde tekrar söylemesini iste (fısıltıyla, uzun, kısa vb.).' : ' Süper söyledi! Faz bitti.'}`;
     case PHASES.SYLLABLE:
-      return `Çocuk "${childText}" dedi. Hece söylemeye çalıştı. Doğru mu? ${progress < 3 ? 'Sonraki hece: ' + (syllables[progress] || syllables[0]) : 'Harika! Faz bitti.'}`;
+      return `Çocuk "${childText}" dedi. Hece söylemeye çalıştı. Doğru mu? ${progress < 3 ? 'Sıradaki FARKLI hece: "' + (syllables[Math.min(progress, syllables.length-1)]) + '". Bu heceyi sor.' : 'Harika! Faz bitti.'}`;
     case PHASES.WORD:
-      return `Çocuk "${childText}" dedi. Kelime okumaya çalıştı. ${progress < 3 ? 'Sonraki kelime: ' + (words[Math.min(progress, words.length-1)]) : 'Tebrikler! Faz bitti.'}`;
+      return `Çocuk "${childText}" dedi. Kelime okumaya çalıştı. ${progress < 3 ? 'Sıradaki FARKLI kelime: "' + (words[Math.min(progress, words.length-1)]) + '". Bu kelimeyi heceleyerek söyle.' : 'Tebrikler! Faz bitti.'}`;
     case PHASES.SENTENCE:
-      return `Çocuk "${childText}" dedi. Cümle okumaya çalıştı. ${progress < 3 ? 'Tekrar söylet.' : 'Muhteşem! Tüm fazları tamamladı!'}`;
+      return `Çocuk "${childText}" dedi. Cümle okumaya çalıştı. ${progress < 3 ? 'Tekrar söylet veya farklı cümle dene.' : 'Muhteşem! Tüm fazları tamamladı!'}`;
     default:
       return `Çocuk "${childText}" dedi. Devam et.`;
   }

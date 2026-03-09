@@ -14,7 +14,7 @@ export const WORLDS = [
     weeks: 6,
     mascot: {
       id: 'aslan',
-      name: 'Aslan Ali',
+      name: 'Leo',
       emoji: '🦁',
       color: '#FF8C00',
       personality: 'cesaretli, teşvik edici, eğlenceli',

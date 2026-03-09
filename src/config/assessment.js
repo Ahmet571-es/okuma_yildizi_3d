@@ -28,6 +28,18 @@ export const ASSESSMENT_CRITERIA = {
       0: 'Sesi üretemedi',
     },
   },
+  write: {
+    code: 'T.Y.1.1.1',
+    label: 'Harfi yazma',
+    description: 'Tanıtılan harfi doğru biçimde yazar.',
+    maxScore: 3,
+    levels: {
+      3: 'Harfi doğru biçimde yazdı',
+      2: 'Harfi yaklaşık doğru yazdı',
+      1: 'Harfi yazmakta zorlandı',
+      0: 'Harfi yazamadı',
+    },
+  },
   syllable: {
     code: 'T.O.1.2.1',
     label: 'Hece oluşturma',
