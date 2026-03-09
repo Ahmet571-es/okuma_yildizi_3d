@@ -166,84 +166,101 @@ function ProgressBar({ value, max, color, label }) {
 // ═══════════════════════════════════════════════════════════════
 function BalloonGame({ letter, letterData, onComplete, accent }) {
   const [balloons, setBalloons] = useState([]);
-  const [score, setScore] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [correctFound, setCorrectFound] = useState(0);
+  const [correctTotal, setCorrectTotal] = useState(0);
+  const [wrongTaps, setWrongTaps] = useState(0);
   const [poppedIds, setPoppedIds] = useState([]);
+  const [shakingId, setShakingId] = useState(null);
   const [feedback, setFeedback] = useState(null);
-  const [round, setRound] = useState(0);
-  const [roundComplete, setRoundComplete] = useState(false);
-  const scoreRef = useRef(0);
-  const roundRef = useRef(0);
+  const [advancing, setAdvancing] = useState(false);
+  const correctFoundRef = useRef(0);
+  const wrongTapsRef = useRef(0);
 
+  // Initialize balloons
   useEffect(() => {
     const words = letterData.discoveryWords || ['araba','top','anne','kuş'];
     const newBalloons = shuffle(words).map((w,i) => ({
-      id: `${round}-${i}`, word: w,
+      id: i, word: w,
       hasSound: w.toLowerCase().includes(letterData.sound.toLowerCase()),
       color: ['#FF6B6B','#4ECDC4','#FFE66D','#A78BFA','#F97316','#06B6D4'][i%6],
-      x: 15 + (i%3)*30 + Math.random()*10,
-      delay: i * 0.4,
+      x: 10 + (i%3)*28 + Math.random()*8,
+      delay: i * 0.3,
     }));
     setBalloons(newBalloons);
+    setCorrectTotal(newBalloons.filter(b => b.hasSound).length);
     setPoppedIds([]);
+    setCorrectFound(0);
+    setWrongTaps(0);
+    correctFoundRef.current = 0;
+    wrongTapsRef.current = 0;
     setFeedback(null);
-    setRoundComplete(false);
-    roundRef.current = round;
-  }, [round]);
+    setAdvancing(false);
+  }, [letter]);
 
   const popBalloon = (b) => {
-    if (poppedIds.includes(b.id) || roundComplete) return;
-
-    const newPopped = [...poppedIds, b.id];
-    setPoppedIds(newPopped);
-    setTotal(t => t + 1);
+    if (poppedIds.includes(b.id) || advancing) return;
 
     if (b.hasSound) {
-      const newScore = score + 1;
-      setScore(newScore);
-      scoreRef.current = newScore;
+      // CORRECT — pop it!
+      const newPopped = [...poppedIds, b.id];
+      setPoppedIds(newPopped);
+      const newCount = correctFound + 1;
+      setCorrectFound(newCount);
+      correctFoundRef.current = newCount;
       setFeedback({ type:'success', text:`Harika! "${b.word}" kelimesinde "${letterData.sound}" sesi var! 🎉` });
-    } else {
-      setFeedback({ type:'error', text:`"${b.word}" kelimesinde "${letterData.sound}" sesi yok.` });
-    }
-    setTimeout(() => setFeedback(null), 1800);
 
-    // Check if all balloons popped
-    if (newPopped.length === balloons.length) {
-      setRoundComplete(true);
-      setTimeout(() => {
-        if (roundRef.current < 1) {
-          setRound(r => r + 1);
-        } else {
-          const finalScore = Math.max(1, Math.min(3, scoreRef.current));
+      // Check if all correct balloons found
+      if (newCount >= correctTotal) {
+        setAdvancing(true);
+        setFeedback({ type:'success', text:`Tebrikler! Tüm "${letterData.sound}" seslerini buldun! 🌟` });
+        setTimeout(() => {
+          const finalScore = wrongTapsRef.current === 0 ? 3 : wrongTapsRef.current <= 2 ? 2 : 1;
           onComplete(finalScore);
-        }
-      }, 1800);
+        }, 2000);
+      } else {
+        setTimeout(() => setFeedback(null), 1500);
+      }
+    } else {
+      // WRONG — shake it, don't pop
+      setWrongTaps(w => w + 1);
+      wrongTapsRef.current += 1;
+      setShakingId(b.id);
+      setFeedback({ type:'error', text:`"${b.word}" kelimesinde "${letterData.sound}" sesi yok. Başka balona bak!` });
+      setTimeout(() => { setShakingId(null); setFeedback(null); }, 1200);
     }
   };
 
   return (
     <div style={{ position:'relative', minHeight:400, display:'flex', flexDirection:'column', alignItems:'center' }}>
       <div style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:8, fontFamily:"'Fredoka'" }}>
-        "{letterData.sound}" sesini içeren balonları patlat! 🎈
+        "{letterData.sound}" sesini içeren balonları bul ve patlat! 🎈
       </div>
-      <div style={{ fontSize:14, color:'rgba(255,255,255,0.7)', marginBottom:16 }}>Puan: {score} / {total}</div>
+      <div style={{ fontSize:14, color:'rgba(255,255,255,0.7)', marginBottom:16 }}>
+        Bulunan: {correctFound} / {correctTotal} doğru balon
+      </div>
 
       <div style={{ position:'relative', width:'100%', height:350, overflow:'hidden', borderRadius:20, background:'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.3) 100%)' }}>
         {balloons.map(b => {
           const isPopped = poppedIds.includes(b.id);
+          const isShaking = shakingId === b.id;
           return (
           <div key={b.id} onClick={() => popBalloon(b)} style={{
-            position:'absolute', left:`${b.x}%`, bottom: isPopped ? '-100px' : '10%',
-            width:90, height:110, cursor:'pointer', transition: isPopped ? 'all 0.5s ease' : 'none',
-            opacity: isPopped ? 0 : 1, transform: isPopped ? 'scale(1.5)' : 'scale(1)',
-            animation: isPopped ? 'none' : `float 2s ease-in-out infinite ${b.delay}s`,
+            position:'absolute', left:`${b.x}%`, bottom: isPopped ? '-120px' : '10%',
+            width:90, height:110, cursor: isPopped || advancing ? 'default' : 'pointer',
+            transition: isPopped ? 'all 0.6s ease' : 'none',
+            opacity: isPopped ? 0 : 1,
+            transform: isPopped ? 'scale(1.5)' : isShaking ? 'scale(1)' : 'scale(1)',
+            animation: isPopped ? 'none' : isShaking ? 'shake 0.4s ease' : `float 2s ease-in-out infinite ${b.delay}s`,
           }}>
             <div style={{
-              width:80, height:95, borderRadius:'50%', background:`radial-gradient(circle at 30% 30%, ${b.color}ee, ${b.color}88)`,
+              width:80, height:95, borderRadius:'50%',
+              background: isShaking
+                ? 'radial-gradient(circle at 30% 30%, #EF444488, #EF444444)'
+                : `radial-gradient(circle at 30% 30%, ${b.color}ee, ${b.color}88)`,
               display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column',
-              boxShadow:`0 4px 15px ${b.color}44, inset 0 -5px 10px rgba(0,0,0,0.1)`,
-              border:'2px solid rgba(255,255,255,0.3)',
+              boxShadow: isShaking ? '0 4px 15px #EF444444' : `0 4px 15px ${b.color}44, inset 0 -5px 10px rgba(0,0,0,0.1)`,
+              border: isShaking ? '3px solid #EF4444' : '2px solid rgba(255,255,255,0.3)',
+              transition: 'all 0.3s',
             }}>
               <div style={{ fontSize:15, fontWeight:800, color:'#fff', textShadow:'0 1px 3px rgba(0,0,0,0.3)', fontFamily:"'Fredoka'" }}>{b.word}</div>
             </div>
@@ -259,7 +276,7 @@ function BalloonGame({ letter, letterData, onComplete, accent }) {
           background: feedback.type === 'success' ? '#10B981' : '#EF4444', color:'#fff',
           padding:'12px 24px', borderRadius:12, fontWeight:700, fontSize:15,
           animation:'pop 0.3s ease', boxShadow:'0 4px 20px rgba(0,0,0,0.3)', fontFamily:"'Nunito'",
-          zIndex:10, whiteSpace:'nowrap', maxWidth:'90%', textAlign:'center'
+          zIndex:10, maxWidth:'90%', textAlign:'center'
         }}>{feedback.text}</div>
       )}
     </div>
