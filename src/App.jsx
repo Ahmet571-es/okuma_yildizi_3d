@@ -165,131 +165,115 @@ function ProgressBar({ value, max, color, label }) {
 // MINI GAME 1: BALON PATLATMA (Sesi Fark Et)
 // ═══════════════════════════════════════════════════════════════
 function BalloonGame({ letter, letterData, onComplete, accent }) {
-  const [, forceRender] = useState(0);
-  const balloonsRef = useRef([]);
-  const poppedRef = useRef(new Set());
-  const correctNeededRef = useRef(0);
-  const correctFoundRef = useRef(0);
-  const wrongTapsRef = useRef(0);
-  const advancingRef = useRef(false);
+  const [balloons, setBalloons] = useState([]);
+  const [poppedSet, setPoppedSet] = useState(new Set());
+  const [found, setFound] = useState(0);
+  const [needed, setNeeded] = useState(0);
+  const [done, setDone] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [shakingId, setShakingId] = useState(null);
+  const wrongRef = useRef(0);
 
-  // Initialize
   useEffect(() => {
     const words = letterData.discoveryWords || ['araba','top','anne','kuş'];
-    const newBalloons = shuffle(words).map((w,i) => ({
+    const bs = shuffle(words).map((w,i) => ({
       id: i, word: w,
       hasSound: w.toLowerCase().includes(letterData.sound.toLowerCase()),
       color: ['#FF6B6B','#4ECDC4','#FFE66D','#A78BFA','#F97316','#06B6D4'][i%6],
       x: 10 + (i%3)*28 + Math.random()*8,
       delay: i * 0.3,
     }));
-    balloonsRef.current = newBalloons;
-    poppedRef.current = new Set();
-    correctNeededRef.current = newBalloons.filter(b => b.hasSound).length;
-    correctFoundRef.current = 0;
-    wrongTapsRef.current = 0;
-    advancingRef.current = false;
+    const n = bs.filter(b => b.hasSound).length;
+    setBalloons(bs);
+    setNeeded(n);
+    setPoppedSet(new Set());
+    setFound(0);
+    setDone(false);
     setFeedback(null);
-    setShakingId(null);
-    forceRender(n => n+1);
+    wrongRef.current = 0;
   }, [letter]);
 
-  const doAdvance = () => {
-    if (advancingRef.current) return;
-    advancingRef.current = true;
-    forceRender(n => n+1);
-    const finalScore = wrongTapsRef.current === 0 ? 3 : wrongTapsRef.current <= 2 ? 2 : 1;
-    onComplete(finalScore);
+  const goNext = () => {
+    if (done) return;
+    setDone(true);
+    const s = wrongRef.current === 0 ? 3 : wrongRef.current <= 2 ? 2 : 1;
+    onComplete(s);
   };
 
   const popBalloon = (b) => {
-    if (poppedRef.current.has(b.id) || advancingRef.current) return;
-
+    if (poppedSet.has(b.id) || done) return;
     if (b.hasSound) {
-      poppedRef.current.add(b.id);
-      correctFoundRef.current += 1;
+      setPoppedSet(prev => { const ns = new Set(prev); ns.add(b.id); return ns; });
+      const newFound = found + 1;
+      setFound(newFound);
       setFeedback({ type:'success', text:`Harika! "${b.word}" kelimesinde "${letterData.sound}" sesi var! 🎉` });
-      forceRender(n => n+1);
-
-      if (correctFoundRef.current >= correctNeededRef.current) {
-        advancingRef.current = true;
+      if (newFound >= needed) {
         setFeedback({ type:'success', text:`Tebrikler! Tüm "${letterData.sound}" seslerini buldun! 🌟` });
-        forceRender(n => n+1);
-        setTimeout(() => doAdvance(), 2000);
+        setDone(true);
+        const s = wrongRef.current === 0 ? 3 : wrongRef.current <= 2 ? 2 : 1;
+        setTimeout(() => onComplete(s), 2000);
       } else {
         setTimeout(() => setFeedback(null), 1500);
       }
     } else {
-      wrongTapsRef.current += 1;
+      wrongRef.current += 1;
       setShakingId(b.id);
-      setFeedback({ type:'error', text:`"${b.word}" kelimesinde "${letterData.sound}" sesi yok. Başka balona bak!` });
+      setFeedback({ type:'error', text:`"${b.word}" kelimesinde "${letterData.sound}" sesi yok!` });
       setTimeout(() => { setShakingId(null); setFeedback(null); }, 1200);
     }
   };
 
-  const balloons = balloonsRef.current;
-  const found = correctFoundRef.current;
-  const needed = correctNeededRef.current;
-  const advancing = advancingRef.current;
-
   return (
-    <div style={{ position:'relative', minHeight:400, display:'flex', flexDirection:'column', alignItems:'center' }}>
-      <div style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:8, fontFamily:"'Fredoka'" }}>
-        "{letterData.sound}" sesini içeren balonları bul ve patlat! 🎈
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}>
+      <div style={{ fontSize:18, fontWeight:700, color:'#fff', fontFamily:"'Fredoka'" }}>
+        "{letterData.sound}" sesini içeren balonları patlat! 🎈
       </div>
-      <div style={{ fontSize:14, color:'rgba(255,255,255,0.7)', marginBottom:16 }}>
-        Bulunan: {found} / {needed} doğru balon
+      <div style={{ fontSize:14, color:'rgba(255,255,255,0.7)' }}>
+        {found} / {needed} doğru balon bulundu
       </div>
 
-      <div style={{ position:'relative', width:'100%', height:320, overflow:'hidden', borderRadius:20, background:'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.3) 100%)' }}>
+      <div style={{ position:'relative', width:'100%', height:300, overflow:'hidden', borderRadius:20, background:'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.3) 100%)' }}>
         {balloons.map(b => {
-          const isPopped = poppedRef.current.has(b.id);
+          const isPopped = poppedSet.has(b.id);
           const isShaking = shakingId === b.id;
           return (
           <div key={b.id} onClick={() => popBalloon(b)} style={{
             position:'absolute', left:`${b.x}%`, bottom: isPopped ? '-120px' : '10%',
-            width:90, height:110, cursor: isPopped || advancing ? 'default' : 'pointer',
-            transition: isPopped ? 'all 0.6s ease' : 'none',
-            opacity: isPopped ? 0 : 1,
+            width:90, height:110, cursor: isPopped || done ? 'default' : 'pointer',
+            transition: isPopped ? 'all 0.6s ease' : 'none', opacity: isPopped ? 0 : 1,
             animation: isPopped ? 'none' : isShaking ? 'shake 0.4s ease' : `float 2s ease-in-out infinite ${b.delay}s`,
           }}>
             <div style={{
               width:80, height:95, borderRadius:'50%',
-              background: isShaking
-                ? 'radial-gradient(circle at 30% 30%, #EF444488, #EF444444)'
+              background: isShaking ? 'radial-gradient(circle at 30% 30%, #EF444488, #EF444444)'
                 : `radial-gradient(circle at 30% 30%, ${b.color}ee, ${b.color}88)`,
               display:'flex', alignItems:'center', justifyContent:'center',
-              boxShadow: isShaking ? '0 4px 15px #EF444444' : `0 4px 15px ${b.color}44`,
               border: isShaking ? '3px solid #EF4444' : '2px solid rgba(255,255,255,0.3)',
-              transition: 'all 0.3s',
+              boxShadow: `0 4px 15px ${b.color}44`, transition:'all 0.3s',
             }}>
               <div style={{ fontSize:15, fontWeight:800, color:'#fff', textShadow:'0 1px 3px rgba(0,0,0,0.3)', fontFamily:"'Fredoka'" }}>{b.word}</div>
             </div>
             <div style={{ width:2, height:15, background:'rgba(255,255,255,0.3)', margin:'0 auto' }} />
-          </div>
-          );
+          </div>);
         })}
       </div>
 
-      {/* Manual advance button - shows after at least 1 correct */}
-      {found > 0 && !advancing && (
-        <button onClick={doAdvance} style={{
-          marginTop:12, padding:'10px 28px', borderRadius:12, border:'2px solid rgba(255,255,255,0.3)',
-          background:'rgba(255,255,255,0.1)', color:'#fff', fontSize:14, fontWeight:700,
-          cursor:'pointer', fontFamily:"'Fredoka'",
-        }}>Sonraki Faz →</button>
-      )}
-
       {feedback && (
         <div style={{
-          position:'absolute', bottom:60, left:'50%', transform:'translateX(-50%)',
           background: feedback.type === 'success' ? '#10B981' : '#EF4444', color:'#fff',
           padding:'12px 24px', borderRadius:12, fontWeight:700, fontSize:15,
-          animation:'pop 0.3s ease', boxShadow:'0 4px 20px rgba(0,0,0,0.3)', fontFamily:"'Nunito'",
-          zIndex:10, maxWidth:'90%', textAlign:'center'
+          animation:'pop 0.3s ease', fontFamily:"'Nunito'", textAlign:'center'
         }}>{feedback.text}</div>
+      )}
+
+      {!done && (
+        <button onClick={goNext} style={{
+          marginTop:4, padding:'12px 32px', borderRadius:14, border:'none',
+          background: found > 0 ? accent : 'rgba(255,255,255,0.15)',
+          color:'#fff', fontSize:16, fontWeight:800, cursor:'pointer',
+          fontFamily:"'Fredoka'", boxShadow: found > 0 ? `0 4px 15px ${accent}66` : 'none',
+          animation: found >= needed && !done ? 'pulse 1.5s ease infinite' : 'none',
+        }}>{found >= needed ? '🌟 Sonraki Faz →' : 'Geç →'}</button>
       )}
     </div>
   );
